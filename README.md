@@ -13,7 +13,7 @@ O projeto combina uma API Node.js/TypeScript com uma interface web responsiva. A
 - Cadastro de listas no navegador, sem banco de dados.
 - Histórico local dos envios realizados pela interface.
 - Relatório dos últimos sete dias com enviados, entregues, falhas e taxa de entrega.
-- Comparador de planos SMSFire com simulação por volume e cupom `FIRE5`.
+- Comparador de planos SMSFire e estimativa de custo Twilio pelo mesmo volume.
 - Callback para atualizações de status da Twilio.
 - Validação de números no padrão E.164.
 - Rate limiting, headers de segurança e tratamento de erros dos provedores.
@@ -151,6 +151,8 @@ Abra **Planos** e informe o volume mensal previsto. O painel calcula mensalidade
 | Scale | R$ 1.499,00 | R$ 0,076 | Melhor estimativa acima de 225.000 SMS/mês |
 
 O cupom não altera o preço unitário da mensagem avulsa, que permanece em R$ 0,10. Esses valores foram informados para o projeto; confirme condições comerciais, impostos e validade do cupom diretamente com a SMSFire.
+
+Logo abaixo, o painel apresenta a Twilio separadamente. Para SMS enviado ao Brasil por número internacional, a tarifa exibida é de **US$ 0,0599 por segmento**, sem conversão automática para reais. O aluguel do número internacional parte de **US$ 1,15 por mês**. Taxas de operadora e outros custos podem ser adicionados. Consulte sempre a [tabela oficial da Twilio para o Brasil](https://www.twilio.com/pt-br/sms/pricing/br).
 
 ## API
 

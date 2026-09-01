@@ -417,6 +417,10 @@ function formatNumber(value) {
   return new Intl.NumberFormat("pt-BR").format(value);
 }
 
+function formatUsd(value) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "USD" }).format(value);
+}
+
 function updatePlanEstimate() {
   const volume = Math.max(0, Math.min(10_000_000, Number(planVolume.value) || 0));
   const totals = Object.entries(plans).map(([id, plan]) => ({
@@ -433,6 +437,7 @@ function updatePlanEstimate() {
 
   document.querySelector("#plan-recommendation").innerHTML =
     `<strong>Para ${formatNumber(volume)} SMS:</strong> o plano ${best.name} tem o menor custo estimado.`;
+  document.querySelector("#twilio-volume-total").textContent = formatUsd(volume * 0.0599);
 }
 
 planVolume.addEventListener("input", updatePlanEstimate);

@@ -763,7 +763,7 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
   align-items: center;
   gap: 14px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 .volume-field input { height: 42px; text-align: right; }
@@ -795,10 +795,10 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
 .plan-index {
   color: var(--faint);
   font-family: "Cascadia Mono", Consolas, monospace;
-  font-size: 9px;
+  font-size: 10px;
 }
 .plan-name h3 { margin: 0; font-size: 16px; font-weight: 680; }
-.plan-name p { margin: 5px 0 0; color: var(--muted); font-size: 10px; }
+.plan-name p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
 .plan-rate,
 .plan-total,
 .plan-detail,
@@ -806,10 +806,10 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
 .plan-rate > span,
 .plan-total > span,
 .plan-detail > span,
-.coupon-box > span { color: var(--faint); font-size: 9px; }
+.coupon-box > span { color: var(--faint); font-size: 11px; }
 .plan-rate strong { font-size: 17px; font-weight: 660; }
-.plan-rate small { color: var(--muted); font-size: 9px; }
-.plan-detail strong { color: #d9dde0; font-size: 11px; font-weight: 620; }
+.plan-rate small { color: var(--muted); font-size: 11px; }
+.plan-detail strong { color: #d9dde0; font-size: 12px; font-weight: 620; }
 .plan-total { justify-self: end; text-align: right; }
 .plan-total strong { font-size: 15px; font-weight: 680; }
 .best-plan .plan-total strong { color: #ff747d; }
@@ -826,8 +826,8 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
   color: var(--text);
   cursor: pointer;
 }
-.coupon-box b { color: #ff747d; font-family: "Cascadia Mono", Consolas, monospace; font-size: 10px; letter-spacing: .08em; }
-.coupon-box small { color: var(--faint); font-size: 9px; }
+.coupon-box b { color: #ff747d; font-family: "Cascadia Mono", Consolas, monospace; font-size: 11px; letter-spacing: .08em; }
+.coupon-box small { color: var(--faint); font-size: 11px; }
 
 .pricing-footer {
   display: flex;
@@ -838,9 +838,80 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
   border-top: 1px solid var(--line-strong);
   background: rgba(0, 0, 0, .1);
 }
-.pricing-footer p { margin: 0; color: var(--muted); font-size: 11px; }
+.pricing-footer p { margin: 0; color: var(--muted); font-size: 12px; }
 .pricing-footer p strong { color: var(--text); }
-.pricing-footer > small { max-width: 430px; color: var(--faint); font-size: 9px; line-height: 1.5; text-align: right; }
+.pricing-footer > small { max-width: 470px; color: var(--faint); font-size: 11px; line-height: 1.55; text-align: right; }
+
+.twilio-pricing-panel {
+  margin-top: 22px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--panel);
+  box-shadow: var(--shadow-soft);
+}
+
+.twilio-pricing-heading {
+  display: grid;
+  min-height: 148px;
+  grid-template-columns: minmax(0, 1fr) 245px;
+  align-items: center;
+  gap: 40px;
+  padding: 28px;
+  border-bottom: 1px solid var(--line-strong);
+}
+.twilio-pricing-heading .kicker { margin-bottom: 7px; }
+.twilio-pricing-heading h2 {
+  margin: 0;
+  font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  font-size: 25px;
+  font-weight: 630;
+  letter-spacing: -.025em;
+}
+.twilio-pricing-heading p {
+  max-width: 570px;
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.twilio-main-rate {
+  display: grid;
+  gap: 6px;
+  padding-left: 26px;
+  border-left: 1px solid var(--line-strong);
+}
+.twilio-main-rate span { color: var(--faint); font-size: 11px; }
+.twilio-main-rate strong { font-size: 24px; font-weight: 680; letter-spacing: -.025em; }
+.twilio-main-rate small { color: var(--muted); font-size: 11px; }
+
+.twilio-pricing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.twilio-pricing-grid article {
+  display: grid;
+  min-height: 132px;
+  align-content: center;
+  gap: 8px;
+  padding: 24px 28px;
+  border-right: 1px solid var(--line);
+}
+.twilio-pricing-grid article:last-child { border-right: 0; }
+.twilio-pricing-grid span { color: var(--faint); font-size: 11px; }
+.twilio-pricing-grid strong { font-size: 15px; font-weight: 660; }
+.twilio-pricing-grid small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+.twilio-pricing-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 26px;
+  padding: 19px 28px;
+  border-top: 1px solid var(--line-strong);
+  background: rgba(0, 0, 0, .1);
+}
+.twilio-pricing-footer p { max-width: 760px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.twilio-pricing-footer a { color: #ff747d; font-size: 11px; font-weight: 650; text-decoration: none; white-space: nowrap; }
+.twilio-pricing-footer a:hover { text-decoration: underline; }
 
 @media (max-width: 900px) {
   .app-shell { display: block; width: min(calc(100% - 20px), 720px); min-height: calc(100vh - 20px); margin: 10px auto; border-radius: 22px; }
@@ -855,6 +926,9 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
   .page-header { min-height: 164px; padding-top: 30px; }
   .plan-row { grid-template-columns: 1fr 1fr; padding: 20px 0; }
   .plan-total { justify-self: start; text-align: left; }
+  .twilio-pricing-grid { grid-template-columns: 1fr; }
+  .twilio-pricing-grid article { min-height: 108px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .twilio-pricing-grid article:last-child { border-bottom: 0; }
 }
 
 @media (max-width: 700px) {
@@ -884,6 +958,9 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
   .plan-list { padding: 0 20px; }
   .plan-row { grid-template-columns: 1fr; gap: 14px; }
   .plan-row::before { left: -20px; }
+  .twilio-pricing-heading { grid-template-columns: 1fr; gap: 22px; }
+  .twilio-main-rate { padding: 20px 0 0; border-top: 1px solid var(--line-strong); border-left: 0; }
+  .twilio-pricing-footer { align-items: flex-start; flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: reduce) {

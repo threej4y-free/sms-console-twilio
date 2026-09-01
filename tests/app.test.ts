@@ -55,6 +55,7 @@ describe("API de SMS", () => {
     expect(response.text).toContain("SMSFire");
     expect(response.text).toContain("Planos");
     expect(response.text).toContain("Scale");
+    expect(response.text).toContain("US$ 0,0599");
     expect(response.headers["content-type"]).toContain("text/html");
   });
 
