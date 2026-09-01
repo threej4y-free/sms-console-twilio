@@ -6,6 +6,37 @@ Painel local para organizar destinatários, escolher o provedor e disparar SMS p
 
 O projeto combina uma API Node.js/TypeScript com uma interface web responsiva. As credenciais permanecem no servidor, as listas são armazenadas no navegador e o relatório consulta os status reais das mensagens na Twilio. A integração SMSFire utiliza a API v3 e seu endpoint de envio em massa.
 
+## Interface
+
+<p align="center">
+  <a href="docs/screenshots/envio.png">
+    <img src="docs/screenshots/envio.png" alt="Painel principal de disparo de mensagens" width="100%" />
+  </a>
+  <br />
+  <sub><strong>Painel principal e envio</strong> — seleção entre Twilio e SMSFire, lista e composição da mensagem.</sub>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/destinatarios.png"><img src="docs/screenshots/destinatarios.png" alt="Cadastro de listas de destinatários" width="100%" /></a>
+      <br /><sub><strong>Destinatários</strong></sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/relatorio.png"><img src="docs/screenshots/relatorio.png" alt="Relatório de envios e entregas" width="100%" /></a>
+      <br /><sub><strong>Relatório</strong></sub>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">
+      <a href="docs/screenshots/planos.png"><img src="docs/screenshots/planos.png" alt="Comparador de preços da SMSFire e Twilio" width="100%" /></a>
+      <br /><sub><strong>Comparador de preços</strong></sub>
+    </td>
+  </tr>
+</table>
+
+Clique em uma imagem para visualizar em tamanho completo.
+
 ## Recursos
 
 - Envio individual pela API autenticada.
