@@ -148,6 +148,7 @@ Abra **Planos** e informe o volume mensal previsto. O painel calcula mensalidade
 | Avulso | R$ 0,00 | R$ 0,10 | O cupom `FIRE5` dá 5% de desconto somente na recarga de saldo |
 | Starter | R$ 149,00 | R$ 0,088 | Melhor estimativa a partir de 12.417 SMS/mês |
 | Growth | R$ 599,00 | R$ 0,080 | Melhor estimativa acima de 56.250 SMS/mês |
+| Scale | R$ 1.499,00 | R$ 0,076 | Melhor estimativa acima de 225.000 SMS/mês |
 
 O cupom não altera o preço unitário da mensagem avulsa, que permanece em R$ 0,10. Esses valores foram informados para o projeto; confirme condições comerciais, impostos e validade do cupom diretamente com a SMSFire.
 

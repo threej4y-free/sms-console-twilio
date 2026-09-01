@@ -406,6 +406,7 @@ const plans = {
   avulso: { name: "Avulso", monthly: 0, rate: 0.10 },
   starter: { name: "Starter", monthly: 149, rate: 0.088 },
   growth: { name: "Growth", monthly: 599, rate: 0.08 },
+  scale: { name: "Scale", monthly: 1499, rate: 0.076 },
 };
 
 function formatCurrency(value) {
