@@ -36,6 +36,11 @@ body {
 
 button, input, textarea, select { font: inherit; }
 button { color: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid rgba(242, 77, 88, 0.72);
+  outline-offset: 3px;
+}
 
 .app-shell {
   display: grid;
@@ -202,6 +207,7 @@ button { color: inherit; }
 }
 
 .mobile-header { display: none; }
+.sidebar-backdrop { display: none; }
 .view { display: none; }
 .view.active { display: block; animation: appear 180ms ease-out; }
 
@@ -864,15 +870,58 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
 .twilio-plan-row .plan-total strong { color: #dfe3e6; }
 
 @media (max-width: 900px) {
-  .app-shell { display: block; width: min(calc(100% - 20px), 720px); min-height: calc(100vh - 20px); margin: 10px auto; border-radius: 22px; }
-  .sidebar { position: fixed; z-index: 20; width: 244px; min-height: 100vh; top: 0; left: 0; transform: translateX(-110%); transition: transform 170ms ease; }
+  body.menu-open { overflow: hidden; }
+  .app-shell { display: block; width: min(calc(100% - 20px), 720px); min-height: calc(100dvh - 20px); margin: 10px auto; border-radius: 22px; }
+  .sidebar {
+    position: fixed;
+    z-index: 20;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(82vw, 280px);
+    min-height: 0;
+    overflow-y: auto;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+    transform: translateX(-110%);
+    transition: transform 190ms ease;
+  }
   body.menu-open .sidebar { transform: translateX(0); box-shadow: 25px 0 50px rgba(0,0,0,.45); }
-  .main { min-height: calc(100vh - 20px); padding: 0 22px 42px; }
-  .mobile-header { display: flex; height: 76px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+  .sidebar-backdrop {
+    position: fixed;
+    z-index: 19;
+    inset: 0;
+    display: block;
+    border: 0;
+    background: rgba(4, 7, 10, 0.66);
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    transition: opacity 190ms ease, visibility 190ms ease;
+  }
+  body.menu-open .sidebar-backdrop { opacity: 1; pointer-events: auto; visibility: visible; }
+  .main { min-height: calc(100dvh - 20px); padding: 0 22px 42px; }
+  .mobile-header {
+    position: sticky;
+    z-index: 10;
+    top: 0;
+    display: flex;
+    height: 76px;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    background: rgba(25, 30, 36, 0.92);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+  }
   .mobile-header .wordmark { height: auto; padding: 0; }
   .mobile-header .wordmark { background: transparent; }
-  #mobile-menu { display: grid; width: 39px; height: 39px; place-content: center; gap: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); box-shadow: var(--shadow-soft); }
-  #mobile-menu span { width: 14px; height: 1px; background: var(--text); }
+  #mobile-menu { display: grid; width: 44px; height: 44px; place-content: center; gap: 6px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel-soft); box-shadow: var(--shadow-soft); }
+  #mobile-menu span { width: 16px; height: 1px; background: var(--text); transition: transform 170ms ease; }
+  body.menu-open #mobile-menu span:first-child { transform: translateY(3.5px) rotate(45deg); }
+  body.menu-open #mobile-menu span:last-child { transform: translateY(-3.5px) rotate(-45deg); }
   .page-header { min-height: 164px; padding-top: 30px; }
   .plan-row { grid-template-columns: 1fr 1fr; padding: 20px 0; }
   .plan-total { justify-self: start; text-align: left; }
@@ -906,6 +955,131 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
   .plan-row { grid-template-columns: 1fr; gap: 14px; }
   .plan-row::before { left: -20px; }
   .twilio-plan-row::after { inset-inline: -20px; }
+}
+
+@media (max-width: 600px) {
+  body { background: var(--shell); }
+  .app-shell {
+    width: 100%;
+    min-height: 100dvh;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .main {
+    min-height: 100dvh;
+    padding: 0 max(16px, env(safe-area-inset-right)) max(34px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+  .mobile-header {
+    height: calc(68px + env(safe-area-inset-top));
+    margin-inline: -16px;
+    padding-top: env(safe-area-inset-top);
+    padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
+  }
+  .mobile-header .brand-name { font-size: 21px; }
+  .mobile-header .wordmark small { font-size: 8px; }
+  .page-header {
+    min-height: auto;
+    gap: 12px;
+    padding: 28px 0 22px;
+  }
+  .page-header > p { display: block; font-size: 12px; line-height: 1.5; }
+  h1 { font-size: clamp(30px, 9vw, 36px); }
+  .compose-grid { gap: 16px; padding-top: 18px; }
+  .form-panel { padding: 18px; border-radius: 18px; }
+  .provider-option { min-height: 58px; padding-inline: 14px; }
+  .rule { margin: 22px 0; }
+  input, textarea, select, .list-picker-trigger { font-size: 16px; }
+  #message { min-height: 128px; }
+  .field-note { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .inline-action, .context-link { min-height: 44px; }
+  .list-picker-option { min-height: 48px; }
+  .form-footer { gap: 14px; margin-top: 20px; }
+  .primary-button, .secondary-button { min-height: 50px; }
+  .context-panel { grid-template-columns: 1fr; gap: 0; padding: 4px 18px; border-radius: 18px; }
+  .context-block { padding: 17px 0; border-bottom: 1px solid var(--line); }
+  .context-block:last-child { border-bottom: 0; }
+  .directory-form { margin-top: 18px; border-radius: 18px; }
+  .directory-fields, .directory-actions { padding: 18px; }
+  .directory-actions { gap: 18px; }
+
+  .table-wrap {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  table { min-width: 0; table-layout: auto; }
+  thead { display: none; }
+  tbody { display: grid; gap: 12px; }
+  tbody tr {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--panel);
+    box-shadow: var(--shadow-soft);
+  }
+  tbody tr td,
+  tbody tr:last-child td {
+    display: grid;
+    grid-template-columns: minmax(88px, .42fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+  tbody tr td:last-child,
+  tbody tr:last-child td:last-child { border-bottom: 0; text-align: left; }
+  tbody td::before {
+    color: var(--faint);
+    content: attr(data-label);
+    font-size: 9px;
+    font-weight: 750;
+    letter-spacing: .08em;
+  }
+  .row-actions { width: 100%; justify-content: flex-start; gap: 22px; }
+  .row-button { min-height: 44px; font-size: 12px; }
+  .message-preview { overflow: visible; text-overflow: clip; white-space: normal; }
+  .empty-state { min-height: 150px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); }
+
+  .report-section { margin-top: 18px; padding: 19px 14px 16px; border-radius: 17px; }
+  .report-heading { gap: 16px; padding-bottom: 17px; }
+  .report-heading h2 { font-size: 21px; }
+  .report-summary { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+  .delivery-chart { height: 184px; gap: 4px; padding-top: 24px; }
+  .chart-bars { height: 125px; gap: 2px; }
+  .chart-label { font-size: 9px; }
+  .bar { width: min(12px, 42%); }
+
+  .pricing-panel { margin-top: 18px; border-radius: 18px; }
+  .pricing-toolbar { min-height: 0; padding: 20px 18px; }
+  .pricing-toolbar h2 { font-size: 20px; }
+  .volume-field { width: 100%; grid-template-columns: 1fr; gap: 8px; }
+  .volume-field input { height: 48px; text-align: left; }
+  .plan-list { padding: 0 18px; }
+  .plan-row { grid-template-columns: 1fr 1fr; gap: 16px 12px; padding: 20px 0; }
+  .plan-name { grid-column: 1 / -1; }
+  .plan-row::before { left: -18px; }
+  .twilio-plan-row::after { inset-inline: -18px; }
+  .plan-rate strong { font-size: 16px; }
+  .plan-total { justify-self: start; text-align: left; }
+  .coupon-box button { min-height: 44px; }
+  .pricing-footer { gap: 16px; padding: 18px; }
+}
+
+@media (max-width: 380px) {
+  .report-summary { grid-template-columns: 1fr; }
+  .plan-row { grid-template-columns: 1fr; }
+  .plan-name { grid-column: auto; }
+}
+
+@media (hover: none) {
+  .primary-button:hover, .secondary-button:hover { filter: none; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

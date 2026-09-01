@@ -21,6 +21,8 @@ const providerInput = document.querySelector("#sms-provider");
 const providerOptions = document.querySelector("#provider-options");
 const providerSummary = document.querySelector("#provider-summary");
 const planVolume = document.querySelector("#plan-volume");
+const mobileMenuButton = document.querySelector("#mobile-menu");
+const sidebarBackdrop = document.querySelector("#sidebar-backdrop");
 
 const providerNames = { twilio: "Twilio", smsfire: "SMSFire" };
 let providers = [
@@ -83,8 +85,7 @@ function navigate(view) {
   document.querySelectorAll(".nav-item").forEach((item) => {
     item.classList.toggle("active", item.dataset.nav === view);
   });
-  document.body.classList.remove("menu-open");
-  document.querySelector("#mobile-menu").setAttribute("aria-expanded", "false");
+  setMobileMenu(false);
   const hashes = { compose: "envio", recipients: "destinatarios", messages: "relatorio", plans: "planos" };
   window.location.hash = hashes[view] || "envio";
   if (view === "messages") loadReport();
@@ -97,9 +98,28 @@ document.querySelectorAll("[data-nav]").forEach((control) => {
   });
 });
 
-document.querySelector("#mobile-menu").addEventListener("click", (event) => {
-  const open = document.body.classList.toggle("menu-open");
-  event.currentTarget.setAttribute("aria-expanded", String(open));
+function setMobileMenu(open) {
+  document.body.classList.toggle("menu-open", open);
+  mobileMenuButton.setAttribute("aria-expanded", String(open));
+  mobileMenuButton.setAttribute("aria-label", open ? "Fechar menu" : "Abrir menu");
+  sidebarBackdrop.tabIndex = open ? 0 : -1;
+}
+
+mobileMenuButton.addEventListener("click", () => {
+  setMobileMenu(!document.body.classList.contains("menu-open"));
+});
+
+sidebarBackdrop.addEventListener("click", () => setMobileMenu(false));
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && document.body.classList.contains("menu-open")) {
+    setMobileMenu(false);
+    mobileMenuButton.focus();
+  }
+});
+
+window.addEventListener("resize", () => {
+  if (window.innerWidth > 900) setMobileMenu(false);
 });
 
 messageInput.addEventListener("input", () => {
@@ -204,10 +224,10 @@ function errorMessage(payload, fallback) {
 function renderLists() {
   listTable.innerHTML = lists.map((list) => `
     <tr>
-      <td>${escapeHtml(list.name)}</td>
-      <td class="muted">${list.numbers.length} ${list.numbers.length === 1 ? "número" : "números"}</td>
-      <td class="muted">${formatDate(list.createdAt)}</td>
-      <td><span class="row-actions"><button class="row-button" type="button" data-use-list="${list.id}">Usar</button><button class="row-button delete" type="button" data-delete-list="${list.id}">Excluir</button></span></td>
+      <td data-label="Lista">${escapeHtml(list.name)}</td>
+      <td data-label="Destinatários" class="muted">${list.numbers.length} ${list.numbers.length === 1 ? "número" : "números"}</td>
+      <td data-label="Cadastro" class="muted">${formatDate(list.createdAt)}</td>
+      <td data-label="Ações"><span class="row-actions"><button class="row-button" type="button" data-use-list="${list.id}">Usar</button><button class="row-button delete" type="button" data-delete-list="${list.id}">Excluir</button></span></td>
     </tr>
   `).join("");
 
@@ -225,11 +245,11 @@ function renderLists() {
 function renderMessages() {
   messageTable.innerHTML = messages.map((message) => `
     <tr>
-      <td class="muted">${escapeHtml(message.to)}</td>
-      <td class="message-preview" title="${escapeHtml(message.body)}">${escapeHtml(message.body)}</td>
-      <td><span class="provider-label ${message.provider === "smsfire" ? "smsfire" : "twilio"}">${escapeHtml(providerNames[message.provider] || message.provider || "Twilio")}</span></td>
-      <td><span class="status-label ${message.status === "falhou" || message.status === "failed" ? "failed" : ""}">${escapeHtml(formatStatus(message.status))}</span></td>
-      <td class="muted">${formatDate(message.createdAt)}</td>
+      <td data-label="Destinatário" class="muted">${escapeHtml(message.to)}</td>
+      <td data-label="Mensagem" class="message-preview" title="${escapeHtml(message.body)}">${escapeHtml(message.body)}</td>
+      <td data-label="Provedor"><span class="provider-label ${message.provider === "smsfire" ? "smsfire" : "twilio"}">${escapeHtml(providerNames[message.provider] || message.provider || "Twilio")}</span></td>
+      <td data-label="Status"><span class="status-label ${message.status === "falhou" || message.status === "failed" ? "failed" : ""}">${escapeHtml(formatStatus(message.status))}</span></td>
+      <td data-label="Data" class="muted">${formatDate(message.createdAt)}</td>
     </tr>
   `).join("");
   messageEmpty.hidden = messages.length > 0;

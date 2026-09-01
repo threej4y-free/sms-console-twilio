@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#11151a" />
     <meta name="description" content="Painel local para disparo de SMS por múltiplos provedores" />
     <title>SMS Console</title>
     <link rel="stylesheet" href="/styles.css" />
@@ -10,7 +11,7 @@
   </head>
   <body>
     <div class="app-shell">
-      <aside class="sidebar">
+      <aside id="mobile-navigation" class="sidebar">
         <a class="wordmark" href="#envio" data-nav="compose" aria-label="smsconsole">
           <span class="brand-name"><b>sms</b><span>console</span><i>.</i></span>
           <small>Central de mensagens</small>
@@ -43,10 +44,12 @@
         </div>
       </aside>
 
+      <button id="sidebar-backdrop" class="sidebar-backdrop" type="button" aria-label="Fechar menu" tabindex="-1"></button>
+
       <main class="main">
         <header class="mobile-header">
           <a class="wordmark" href="#envio" data-nav="compose"><span class="brand-name"><b>sms</b><span>console</span><i>.</i></span><small>Central de mensagens</small></a>
-          <button id="mobile-menu" type="button" aria-label="Abrir menu" aria-expanded="false">
+          <button id="mobile-menu" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="mobile-navigation">
             <span></span><span></span>
           </button>
         </header>
