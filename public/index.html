@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Painel local para envio de SMS pela Twilio" />
+    <title>SMS Console</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="wordmark" href="#envio" data-nav="compose" aria-label="smsconsole">
+          <span class="brand-name"><b>sms</b><span>console</span><i>.</i></span>
+          <small>Twilio messaging</small>
+        </a>
+
+        <nav class="main-nav" aria-label="Navegação principal">
+          <button class="nav-item active" type="button" data-nav="compose">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v12H8l-4 3V5Z" /><path d="M8 9h8M8 13h5" /></svg>
+            <span>Envio</span>
+          </button>
+          <button class="nav-item" type="button" data-nav="recipients">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0M17 8h4M19 6v4" /></svg>
+            <span>Destinatários</span>
+            <em id="recipient-nav-count">0</em>
+          </button>
+          <button class="nav-item" type="button" data-nav="messages">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" /></svg>
+            <span>Relatório</span>
+            <em id="message-nav-count">0</em>
+          </button>
+        </nav>
+
+        <div class="sidebar-meta">
+          <span><i></i> API online</span>
+          <small>Twilio · Local</small>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="mobile-header">
+          <a class="wordmark" href="#envio" data-nav="compose"><span class="brand-name"><b>sms</b><span>console</span><i>.</i></span><small>Twilio messaging</small></a>
+          <button id="mobile-menu" type="button" aria-label="Abrir menu" aria-expanded="false">
+            <span></span><span></span>
+          </button>
+        </header>
+
+        <section class="view active" data-view="compose">
+          <header class="page-header">
+            <div>
+              <span class="kicker">Envio</span>
+              <h1>Disparo de Mensagens</h1>
+            </div>
+            <p>Envie uma mensagem para uma lista autorizada na sua conta Twilio.</p>
+          </header>
+
+          <div class="compose-grid">
+            <form id="sms-form" class="form-panel" novalidate>
+              <div class="field">
+                <label for="recipient-list">Lista de destinatários</label>
+                <div class="list-picker">
+                  <button id="recipient-list-trigger" class="list-picker-trigger" type="button" aria-haspopup="true" aria-expanded="false">
+                    <span>Selecione uma lista</span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5" /></svg>
+                  </button>
+                  <div id="recipient-list-menu" class="list-picker-menu" role="menu" hidden></div>
+                  <input id="recipient-list" name="recipientList" type="hidden" />
+                </div>
+                <div class="field-note">
+                  <span id="selected-list-count">Nenhuma lista selecionada</span>
+                  <button class="inline-action" type="button" data-nav="recipients">Gerenciar listas</button>
+                </div>
+              </div>
+
+              <div class="rule"></div>
+
+              <div class="field">
+                <div class="label-row">
+                  <label for="message">Mensagem</label>
+                  <span id="character-count">0 / 1600</span>
+                </div>
+                <textarea id="message" name="body" rows="8" maxlength="1600" placeholder="Escreva a mensagem..." required></textarea>
+              </div>
+
+              <div id="result" class="result" role="status" aria-live="polite" hidden>
+                <span></span>
+                <div><strong id="result-title"></strong><p id="result-message"></p></div>
+              </div>
+
+              <div class="form-footer">
+                <p>Credenciais protegidas no servidor.</p>
+                <button class="primary-button" id="submit-button" type="submit">
+                  <span>Enviar para a lista</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5" /></svg>
+                </button>
+              </div>
+            </form>
+
+            <aside class="context-panel">
+              <div class="context-block">
+                <span class="context-label">Remetente</span>
+                <strong>Configurado no servidor</strong>
+                <small>Número Twilio</small>
+              </div>
+              <div class="context-block">
+                <span class="context-label">Plano</span>
+                <strong>Trial</strong>
+                <small>Apenas destinos verificados</small>
+              </div>
+              <div class="context-block note-block">
+                <span class="context-label">Entrega</span>
+                <p>Uma mensagem aceita ainda pode ser recusada pela operadora. Consulte o relatório após o envio.</p>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" data-view="recipients">
+          <header class="page-header">
+            <div>
+              <span class="kicker">Listas</span>
+              <h1>Destinatários</h1>
+            </div>
+            <p>Organize números em listas. Os dados permanecem somente neste navegador.</p>
+          </header>
+
+          <form id="recipient-form" class="directory-form" novalidate>
+            <div class="directory-fields">
+              <div class="field">
+                <label for="list-name">Nome da lista</label>
+                <input id="list-name" name="name" type="text" maxlength="80" placeholder="Ex.: clientes setembro" required />
+              </div>
+              <div class="field">
+                <label for="list-numbers">Números</label>
+                <textarea id="list-numbers" name="numbers" rows="4" placeholder="Um número por linha&#10;+5511999999999&#10;+5511888888888" required></textarea>
+              </div>
+            </div>
+            <div class="directory-actions">
+              <div>
+                <strong>Nova lista</strong>
+                <p>Adicione até 100 números no formato internacional, um por linha.</p>
+              </div>
+              <button class="secondary-button" type="submit">Salvar lista</button>
+            </div>
+          </form>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Lista</th><th>Destinatários</th><th>Cadastro</th><th><span class="sr-only">Ações</span></th></tr></thead>
+              <tbody id="recipient-table"></tbody>
+            </table>
+            <div id="recipient-empty" class="empty-state">
+              <p>Nenhuma lista cadastrada.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" data-view="messages">
+          <header class="page-header">
+            <div>
+              <span class="kicker">Desempenho</span>
+              <h1>Relatório</h1>
+            </div>
+            <p>Envios registrados neste navegador e entregas consultadas diretamente na Twilio.</p>
+          </header>
+
+          <div class="table-wrap messages-table">
+            <table>
+              <thead><tr><th>Destinatário</th><th>Mensagem</th><th>Status</th><th>Data</th></tr></thead>
+              <tbody id="message-table"></tbody>
+            </table>
+            <div id="message-empty" class="empty-state">
+              <p>Nenhuma mensagem enviada nesta sessão.</p>
+            </div>
+          </div>
+
+          <section class="report-section" aria-labelledby="report-title">
+            <header class="report-heading">
+              <div>
+                <span class="kicker">Últimos 7 dias</span>
+                <h2 id="report-title">Envios e entregas</h2>
+              </div>
+              <div class="report-summary" aria-label="resumo de entregas">
+                <span><i class="sent-dot"></i><strong id="sent-count">—</strong> enviados</span>
+                <span><i class="delivered-dot"></i><strong id="delivered-count">—</strong> entregues</span>
+                <span><strong id="delivery-rate">—</strong> de entrega</span>
+              </div>
+            </header>
+            <div id="delivery-chart" class="delivery-chart" role="img" aria-label="gráfico de mensagens enviadas e entregues nos últimos sete dias"></div>
+            <p id="report-note" class="report-note">Carregando dados da Twilio...</p>
+          </section>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
