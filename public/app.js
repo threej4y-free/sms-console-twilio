@@ -291,7 +291,7 @@ form.addEventListener("submit", async (event) => {
   }
 
   submitButton.disabled = true;
-  submitButton.querySelector("span").textContent = `Enviando 0/${list.numbers.length}`;
+  submitButton.querySelector("span").textContent = `Disparando 0/${list.numbers.length}`;
 
   try {
     const response = await fetch("/ui/broadcasts", {
@@ -335,7 +335,7 @@ form.addEventListener("submit", async (event) => {
     showResult("error", "Servidor indisponível", "Confirme se a aplicação está em execução e tente novamente.");
   } finally {
     submitButton.disabled = false;
-    submitButton.querySelector("span").textContent = "Enviar para a lista";
+    submitButton.querySelector("span").textContent = "Disparar mensagens";
   }
 });
 

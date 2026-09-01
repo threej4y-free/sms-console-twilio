@@ -1,57 +1,167 @@
-# API de disparo de SMS com Twilio
+# smsconsole.
 
-API Node.js + TypeScript para enviar SMS, protegida por API key e preparada para receber atualizacoes de status da Twilio.
+Painel local para organizar destinatários, disparar SMS pela Twilio e acompanhar entregas.
 
-## Requisitos
+O projeto combina uma API Node.js/TypeScript com uma interface web responsiva. As credenciais permanecem no servidor, as listas são armazenadas no navegador e o relatório consulta os status reais das mensagens na Twilio.
 
-- Node.js 20 ou superior
-- Conta Twilio e um numero habilitado para SMS
-- Em conta trial, o destinatario precisa estar permitido/verificado na conta
+## Recursos
 
-## Conta trial
+- Envio individual pela API autenticada.
+- Disparo da mesma mensagem para listas com até 100 números.
+- Cadastro de listas no navegador, sem banco de dados.
+- Histórico local dos envios realizados pela interface.
+- Relatório dos últimos sete dias com enviados, entregues, falhas e taxa de entrega.
+- Callback para atualizações de status da Twilio.
+- Validação de números no padrão E.164.
+- Rate limiting, headers de segurança e tratamento de erros da Twilio.
+- Validação criptográfica dos webhooks recebidos.
 
-As limitacoes exatas dependem do tipo de trial exibido no Console. Em geral, confirme antes do teste:
+## Tecnologias
 
-- o numero de destino esta na lista de destinatarios verificados;
-- o pais de destino esta permitido em **Messaging > Settings > Geo permissions**;
-- o conteudo atende as regras ou aos templates mostrados no Console da sua conta trial.
+- Node.js 20+
+- TypeScript
+- Express
+- Twilio Node Helper Library
+- Zod
+- Vitest e Supertest
+- HTML, CSS e JavaScript sem framework no frontend
 
-Ao receber um erro da Twilio, esta API devolve `code`, `message` e `moreInfo` para facilitar o diagnostico.
+## Como funciona
+
+```text
+Navegador local
+    │
+    ├── listas e histórico no localStorage
+    │
+    └── API local ──► Twilio ──► operadora ──► destinatário
+                         │
+                         └── webhook de status ──► API
+```
+
+A interface usa rotas restritas a conexões locais. O endpoint público de envio continua protegido por `API_KEY`.
+
+## Pré-requisitos
+
+- Node.js 20 ou superior.
+- Conta Twilio.
+- Número Twilio habilitado para SMS.
+- Destinos liberados pelas permissões geográficas da conta.
+
+Em contas trial, a Twilio permite o envio somente para destinatários verificados. Essa limitação pertence à conta e não pode ser removida pelo código.
+
+## Instalação
+
+Clone o projeto e instale as dependências:
+
+```powershell
+git clone https://github.com/threej4y-free/sms-console-twilio.git
+Set-Location sms-console-twilio
+npm install
+```
+
+Crie o arquivo local de configuração:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Preencha o `.env` com os dados da sua conta:
+
+```env
+NODE_ENV=development
+PORT=3001
+
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=seu_auth_token
+TWILIO_PHONE_NUMBER=+15005550006
+
+API_KEY=gere-uma-chave-longa-e-aleatoria
+PUBLIC_BASE_URL=
+TWILIO_VALIDATE_WEBHOOKS=true
+```
+
+Nunca envie o `.env` ao Git. O arquivo já está incluído no `.gitignore` e no `.npmignore`.
 
 ## Executar localmente
 
-O arquivo `.env` local contem a configuracao e nao e versionado. Instale as dependencias e inicie a API:
-
 ```powershell
-npm install
 npm run dev
 ```
 
-Verifique se ela esta no ar:
+Abra o painel:
+
+<http://localhost:3001>
+
+Verifique a API:
 
 ```powershell
 Invoke-RestMethod http://localhost:3001/health
 ```
 
-Abra `http://localhost:3001` no navegador para usar a interface de envio. A chave e aplicada no servidor automaticamente e nunca e enviada ao navegador. Por seguranca, essa rota de conveniencia aceita apenas conexoes locais e fica desativada quando `NODE_ENV=production`.
+## Usar o painel
 
-## Enviar um SMS
+### 1. Criar uma lista
 
-Use o numero de destino no formato E.164. No PowerShell, carregue a `API_KEY` sem imprimi-la e envie a requisicao:
+Abra **Destinatários**, informe um nome e cole um número por linha:
 
-```powershell
-$smsApiKey = (Get-Content .env | Where-Object { $_ -like 'API_KEY=*' }).Substring(8)
-$headers = @{ Authorization = "Bearer $smsApiKey" }
-$payload = @{ to = "+5511999999999"; body = "Ola pela Twilio" } | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri http://localhost:3001/v1/messages -Headers $headers -ContentType "application/json" -Body $payload
+```text
++5511999999999
++5511888888888
 ```
 
-Resposta esperada:
+Os números devem estar no formato E.164: sinal de `+`, código do país, DDD e telefone, sem zero de operadora.
+
+### 2. Enviar uma mensagem
+
+Abra **Envio**, selecione uma lista, escreva a mensagem e confirme o disparo. O servidor processa cada número e retorna quantos envios foram aceitos ou recusados.
+
+### 3. Consultar o relatório
+
+Abra **Relatório** para visualizar:
+
+- histórico salvo neste navegador;
+- mensagens enviadas nos últimos sete dias;
+- entregas confirmadas;
+- taxa de entrega;
+- falhas e mensagens ainda em processamento.
+
+O gráfico consulta a API da Twilio e considera até os 1.000 registros de saída mais recentes.
+
+## API
+
+### Autenticação
+
+O endpoint `/v1/messages` aceita a chave em um destes headers:
+
+```http
+Authorization: Bearer <API_KEY>
+```
+
+```http
+X-API-Key: <API_KEY>
+```
+
+### Enviar um SMS
+
+```http
+POST /v1/messages
+Content-Type: application/json
+Authorization: Bearer <API_KEY>
+```
+
+```json
+{
+  "to": "+5511999999999",
+  "body": "Olá pela Twilio"
+}
+```
+
+Resposta:
 
 ```json
 {
   "message": {
-    "sid": "SM...",
+    "sid": "SMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
     "to": "+5511999999999",
     "from": "+15005550006",
     "status": "queued",
@@ -60,29 +170,75 @@ Resposta esperada:
 }
 ```
 
-## Callback de status
+### Rotas disponíveis
 
-Ao publicar a API, configure `PUBLIC_BASE_URL` com a origem HTTPS publica, sem barra no final. O envio passara automaticamente esta URL para a Twilio:
+| Método | Rota | Finalidade | Proteção |
+|---|---|---|---|
+| `GET` | `/health` | Verificação de saúde | Pública |
+| `POST` | `/v1/messages` | Envio individual | API key |
+| `POST` | `/ui/messages` | Envio individual pela interface | Apenas local |
+| `POST` | `/ui/broadcasts` | Envio para até 100 destinatários | Apenas local |
+| `GET` | `/ui/report` | Relatório dos últimos sete dias | Apenas local |
+| `POST` | `/webhooks/twilio/message-status` | Atualização de status | Assinatura Twilio |
+
+## Webhook de status
+
+Para receber atualizações da Twilio, publique a API em uma URL HTTPS e configure:
+
+```env
+PUBLIC_BASE_URL=https://sms.seudominio.com
+```
+
+Os envios passarão automaticamente este callback:
 
 ```text
-https://seu-dominio.com/webhooks/twilio/message-status
+https://sms.seudominio.com/webhooks/twilio/message-status
 ```
 
-O endpoint valida o cabecalho `X-Twilio-Signature`. Nao desative `TWILIO_VALIDATE_WEBHOOKS` em producao.
+O endpoint valida o header `X-Twilio-Signature` com o Auth Token. Mantenha `TWILIO_VALIDATE_WEBHOOKS=true` em produção.
 
-## Rotas
+## Segurança
 
-- `GET /health`: verificacao de saude
-- `POST /v1/messages`: envia uma mensagem; requer `Authorization: Bearer <API_KEY>` ou `X-API-Key`
-- `POST /ui/messages`: envio usado pela interface; disponivel apenas localmente e fora de producao
-- `POST /ui/broadcasts`: envia a mesma mensagem para ate 100 numeros de uma lista local
-- `GET /ui/report`: retorna enviados, entregues e a serie dos ultimos 7 dias diretamente da Twilio
-- `POST /webhooks/twilio/message-status`: recebe mudancas de status assinadas pela Twilio
+- Credenciais carregadas exclusivamente por variáveis de ambiente.
+- `.env`, artefatos de build e dependências fora do Git.
+- API key comparada com `timingSafeEqual`.
+- Limite de requisições nos endpoints de envio.
+- Payload JSON limitado a 20–30 KB.
+- Webhook validado criptograficamente.
+- Rotas da interface bloqueadas fora do computador local.
+- Rotas locais desativadas automaticamente quando `NODE_ENV=production`.
 
-## Verificacoes
+Para disponibilizar o painel publicamente, implemente autenticação de usuário e autorização antes de habilitar disparos remotos.
 
-```powershell
-npm run typecheck
-npm test
-npm run build
+## Scripts
+
+| Comando | Descrição |
+|---|---|
+| `npm run dev` | Inicia o servidor com recarregamento automático |
+| `npm run typecheck` | Verifica os tipos sem gerar arquivos |
+| `npm test` | Executa os testes automatizados |
+| `npm run build` | Compila o TypeScript em `dist/` |
+| `npm start` | Executa a versão compilada |
+
+## Estrutura
+
+```text
+public/
+  index.html          interface
+  styles.css          tema e responsividade
+  app.js              listas, envios e relatório
+src/
+  app.ts              rotas, validações e segurança
+  config.ts           leitura das variáveis de ambiente
+  server.ts           inicialização e encerramento do servidor
+  sms-service.ts      integração e relatório da Twilio
+tests/
+  app.test.ts         testes da API e da interface
 ```
+
+## Limitações atuais
+
+- Listas e histórico são locais ao navegador e não são sincronizados entre dispositivos.
+- O histórico visual registra o status retornado no momento do envio; o gráfico usa os status atuais consultados na Twilio.
+- O envio em lote é sequencial e limitado a 100 destinatários por solicitação.
+- Contas trial continuam sujeitas às restrições de destinatários e conteúdo da Twilio.
