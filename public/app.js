@@ -121,7 +121,7 @@ function selectProvider(providerId) {
   messageInput.maxLength = isSmsFire ? 765 : 1600;
   document.querySelector("#selected-provider-name").textContent = provider.name;
   document.querySelector("#selected-provider-status").textContent = "Configurado no servidor";
-  document.querySelector("#selected-provider-plan").textContent = isSmsFire ? "A partir de R$ 0,095/SMS" : "Conta Twilio";
+  document.querySelector("#selected-provider-plan").textContent = isSmsFire ? "A partir de R$ 0,10/SMS" : "Conta Twilio";
   messageInput.dispatchEvent(new Event("input"));
 }
 
@@ -403,7 +403,7 @@ form.addEventListener("submit", async (event) => {
 });
 
 const plans = {
-  avulso: { name: "Avulso", monthly: 0, rate: 0.095 },
+  avulso: { name: "Avulso", monthly: 0, rate: 0.10 },
   starter: { name: "Starter", monthly: 149, rate: 0.088 },
   growth: { name: "Growth", monthly: 599, rate: 0.08 },
 };
@@ -440,9 +440,9 @@ document.querySelector("#copy-coupon").addEventListener("click", async (event) =
   try {
     await navigator.clipboard.writeText("FIRE5");
     label.textContent = "Copiado";
-    window.setTimeout(() => { label.textContent = "Copiar"; }, 1600);
+    window.setTimeout(() => { label.textContent = "5% de desconto"; }, 1600);
   } catch {
-    label.textContent = "FIRE5";
+    label.textContent = "5% de desconto";
   }
 });
 
