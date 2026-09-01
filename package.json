@@ -1,8 +1,8 @@
 {
-  "name": "twilio-sms-api",
+  "name": "sms-console",
   "version": "1.0.0",
   "private": true,
-  "description": "API segura para disparo de SMS pela Twilio",
+  "description": "Console seguro para disparo de SMS pela Twilio e SMSFire",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",

@@ -17,6 +17,16 @@ const listTable = document.querySelector("#recipient-table");
 const listEmpty = document.querySelector("#recipient-empty");
 const messageTable = document.querySelector("#message-table");
 const messageEmpty = document.querySelector("#message-empty");
+const providerInput = document.querySelector("#sms-provider");
+const providerOptions = document.querySelector("#provider-options");
+const providerSummary = document.querySelector("#provider-summary");
+const planVolume = document.querySelector("#plan-volume");
+
+const providerNames = { twilio: "Twilio", smsfire: "SMSFire" };
+let providers = [
+  { id: "twilio", name: "Twilio", configured: true },
+  { id: "smsfire", name: "SMSFire", configured: false },
+];
 
 let lists = readStorage(STORAGE_LISTS);
 let messages = readStorage(STORAGE_MESSAGES);
@@ -75,7 +85,8 @@ function navigate(view) {
   });
   document.body.classList.remove("menu-open");
   document.querySelector("#mobile-menu").setAttribute("aria-expanded", "false");
-  window.location.hash = view === "compose" ? "envio" : view === "recipients" ? "destinatarios" : "relatorio";
+  const hashes = { compose: "envio", recipients: "destinatarios", messages: "relatorio", plans: "planos" };
+  window.location.hash = hashes[view] || "envio";
   if (view === "messages") loadReport();
 }
 
@@ -92,8 +103,56 @@ document.querySelector("#mobile-menu").addEventListener("click", (event) => {
 });
 
 messageInput.addEventListener("input", () => {
-  count.textContent = `${messageInput.value.length} / 1600`;
+  count.textContent = `${messageInput.value.length} / ${messageInput.maxLength}`;
 });
+
+function selectProvider(providerId) {
+  const provider = providers.find((item) => item.id === providerId);
+  if (!provider?.configured) return;
+
+  providerInput.value = providerId;
+  providerOptions.querySelectorAll("[data-provider]").forEach((option) => {
+    const selected = option.dataset.provider === providerId;
+    option.classList.toggle("active", selected);
+    option.setAttribute("aria-pressed", String(selected));
+  });
+
+  const isSmsFire = providerId === "smsfire";
+  messageInput.maxLength = isSmsFire ? 765 : 1600;
+  document.querySelector("#selected-provider-name").textContent = provider.name;
+  document.querySelector("#selected-provider-status").textContent = "Configurado no servidor";
+  document.querySelector("#selected-provider-plan").textContent = isSmsFire ? "A partir de R$ 0,095/SMS" : "Conta Twilio";
+  messageInput.dispatchEvent(new Event("input"));
+}
+
+providerOptions.addEventListener("click", (event) => {
+  const option = event.target.closest("[data-provider]");
+  if (option) selectProvider(option.dataset.provider);
+});
+
+async function loadProviders() {
+  try {
+    const response = await fetch("/ui/providers");
+    const payload = await response.json();
+    if (!response.ok || !Array.isArray(payload.providers)) throw new Error();
+    providers = payload.providers;
+
+    providerOptions.querySelectorAll("[data-provider]").forEach((option) => {
+      const provider = providers.find((item) => item.id === option.dataset.provider);
+      const configured = Boolean(provider?.configured);
+      option.disabled = !configured;
+      option.querySelector(".provider-state").textContent = configured ? "Disponível" : "Configurar";
+    });
+
+    const configuredCount = providers.filter((provider) => provider.configured).length;
+    providerSummary.textContent = `${configuredCount} ${configuredCount === 1 ? "provedor configurado" : "provedores configurados"}`;
+
+    const current = providers.find((provider) => provider.id === providerInput.value && provider.configured);
+    selectProvider(current?.id || providers.find((provider) => provider.configured)?.id || "twilio");
+  } catch {
+    providerSummary.textContent = "Status indisponível";
+  }
+}
 
 listSelect.addEventListener("change", () => {
   const list = lists.find((item) => item.id === listSelect.value);
@@ -137,6 +196,7 @@ function errorMessage(payload, fallback) {
     const code = payload.twilio.code ? `código ${payload.twilio.code}: ` : "";
     return `${code}${payload.twilio.message}`;
   }
+  if (payload?.providerError?.message) return payload.providerError.message;
   if (payload?.details) return Object.values(payload.details).flat().join(" ");
   return payload?.error || fallback;
 }
@@ -167,6 +227,7 @@ function renderMessages() {
     <tr>
       <td class="muted">${escapeHtml(message.to)}</td>
       <td class="message-preview" title="${escapeHtml(message.body)}">${escapeHtml(message.body)}</td>
+      <td><span class="provider-label">${escapeHtml(providerNames[message.provider] || message.provider || "Twilio")}</span></td>
       <td><span class="status-label ${message.status === "falhou" || message.status === "failed" ? "failed" : ""}">${escapeHtml(formatStatus(message.status))}</span></td>
       <td class="muted">${formatDate(message.createdAt)}</td>
     </tr>
@@ -284,6 +345,7 @@ form.addEventListener("submit", async (event) => {
   result.hidden = true;
   const list = lists.find((item) => item.id === listSelect.value);
   const body = messageInput.value.trim();
+  const provider = providerInput.value;
 
   if (!list || !body) {
     showResult("error", "Revise os campos", "Selecione uma lista e escreva a mensagem.");
@@ -297,7 +359,7 @@ form.addEventListener("submit", async (event) => {
     const response = await fetch("/ui/broadcasts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipients: list.numbers, body }),
+      body: JSON.stringify({ recipients: list.numbers, body, provider }),
     });
     const payload = await response.json();
 
@@ -311,6 +373,7 @@ form.addEventListener("submit", async (event) => {
         id: item.ok ? item.message.sid : crypto.randomUUID(),
         to: item.to,
         body,
+        provider: payload.provider || provider,
         status: item.ok ? item.message.status : "falhou",
         createdAt: item.ok && item.message.dateCreated ? item.message.dateCreated : new Date().toISOString(),
       });
@@ -326,9 +389,9 @@ form.addEventListener("submit", async (event) => {
         `${payload.summary.sent} enviados · ${payload.summary.failed} recusados`,
       );
     } else {
-      showResult("success", "Lista enviada", `${payload.summary.sent} mensagens aceitas pela Twilio.`);
+      showResult("success", "Disparo concluído", `${payload.summary.sent} mensagens aceitas pela ${providerNames[provider]}.`);
       messageInput.value = "";
-      count.textContent = "0 / 1600";
+      messageInput.dispatchEvent(new Event("input"));
     }
     loadReport();
   } catch {
@@ -339,7 +402,53 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+const plans = {
+  avulso: { name: "Avulso", monthly: 0, rate: 0.095 },
+  starter: { name: "Starter", monthly: 149, rate: 0.088 },
+  growth: { name: "Growth", monthly: 599, rate: 0.08 },
+};
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+}
+
+function formatNumber(value) {
+  return new Intl.NumberFormat("pt-BR").format(value);
+}
+
+function updatePlanEstimate() {
+  const volume = Math.max(0, Math.min(10_000_000, Number(planVolume.value) || 0));
+  const totals = Object.entries(plans).map(([id, plan]) => ({
+    id,
+    name: plan.name,
+    total: plan.monthly + (volume * plan.rate),
+  }));
+  const best = totals.reduce((lowest, item) => item.total < lowest.total ? item : lowest);
+
+  for (const item of totals) {
+    document.querySelector(`[data-plan-total="${item.id}"]`).textContent = formatCurrency(item.total);
+    document.querySelector(`[data-plan="${item.id}"]`).classList.toggle("best-plan", item.id === best.id);
+  }
+
+  document.querySelector("#plan-recommendation").innerHTML =
+    `<strong>Para ${formatNumber(volume)} SMS:</strong> o plano ${best.name} tem o menor custo estimado.`;
+}
+
+planVolume.addEventListener("input", updatePlanEstimate);
+document.querySelector("#copy-coupon").addEventListener("click", async (event) => {
+  const label = event.currentTarget.querySelector("small");
+  try {
+    await navigator.clipboard.writeText("FIRE5");
+    label.textContent = "Copiado";
+    window.setTimeout(() => { label.textContent = "Copiar"; }, 1600);
+  } catch {
+    label.textContent = "FIRE5";
+  }
+});
+
 const initialHash = window.location.hash.replace("#", "");
-navigate(initialHash === "destinatarios" ? "recipients" : initialHash === "relatorio" ? "messages" : "compose");
+navigate(initialHash === "destinatarios" ? "recipients" : initialHash === "relatorio" ? "messages" : initialHash === "planos" ? "plans" : "compose");
 renderLists();
 renderMessages();
+updatePlanEstimate();
+loadProviders();

@@ -1,19 +1,22 @@
 # smsconsole.
 
-Painel local para organizar destinatários, disparar SMS pela Twilio e acompanhar entregas.
+Painel local para organizar destinatários, escolher o provedor e disparar SMS pela Twilio ou SMSFire.
 
-O projeto combina uma API Node.js/TypeScript com uma interface web responsiva. As credenciais permanecem no servidor, as listas são armazenadas no navegador e o relatório consulta os status reais das mensagens na Twilio.
+O projeto combina uma API Node.js/TypeScript com uma interface web responsiva. As credenciais permanecem no servidor, as listas são armazenadas no navegador e o relatório consulta os status reais das mensagens na Twilio. A integração SMSFire utiliza a API v3 e seu endpoint de envio em massa.
 
 ## Recursos
 
 - Envio individual pela API autenticada.
+- Escolha do provedor antes de cada disparo.
 - Disparo da mesma mensagem para listas com até 100 números.
+- Envio em lote pela SMSFire v3.
 - Cadastro de listas no navegador, sem banco de dados.
 - Histórico local dos envios realizados pela interface.
 - Relatório dos últimos sete dias com enviados, entregues, falhas e taxa de entrega.
+- Comparador de planos SMSFire com simulação por volume e cupom `FIRE5`.
 - Callback para atualizações de status da Twilio.
 - Validação de números no padrão E.164.
-- Rate limiting, headers de segurança e tratamento de erros da Twilio.
+- Rate limiting, headers de segurança e tratamento de erros dos provedores.
 - Validação criptográfica dos webhooks recebidos.
 
 ## Tecnologias
@@ -21,7 +24,7 @@ O projeto combina uma API Node.js/TypeScript com uma interface web responsiva. A
 - Node.js 20+
 - TypeScript
 - Express
-- Twilio Node Helper Library
+- Twilio Node Helper Library e API REST da SMSFire
 - Zod
 - Vitest e Supertest
 - HTML, CSS e JavaScript sem framework no frontend
@@ -33,9 +36,11 @@ Navegador local
     │
     ├── listas e histórico no localStorage
     │
-    └── API local ──► Twilio ──► operadora ──► destinatário
-                         │
-                         └── webhook de status ──► API
+    └── API local ──┬──► Twilio ──► operadora ──► destinatário
+                    │        │
+                    │        └── webhook de status ──► API
+                    │
+                    └──► SMSFire v3 ──► operadora ──► destinatário
 ```
 
 A interface usa rotas restritas a conexões locais. O endpoint público de envio continua protegido por `API_KEY`.
@@ -43,8 +48,9 @@ A interface usa rotas restritas a conexões locais. O endpoint público de envio
 ## Pré-requisitos
 
 - Node.js 20 ou superior.
-- Conta Twilio.
-- Número Twilio habilitado para SMS.
+- Conta Twilio e, para habilitar o segundo provedor, conta SMSFire.
+- Para Twilio: número habilitado para SMS.
+- Para SMSFire: usuário e token HTTP da API v3.
 - Destinos liberados pelas permissões geográficas da conta.
 
 Em contas trial, a Twilio permite o envio somente para destinatários verificados. Essa limitação pertence à conta e não pode ser removida pelo código.
@@ -74,6 +80,10 @@ PORT=3001
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=seu_auth_token
 TWILIO_PHONE_NUMBER=+15005550006
+
+SMSFIRE_USERNAME=seu_usuario
+SMSFIRE_API_TOKEN=seu_token_http
+SMSFIRE_BASE_URL=https://api-v3.smsfire.com.br
 
 API_KEY=gere-uma-chave-longa-e-aleatoria
 PUBLIC_BASE_URL=
@@ -113,7 +123,9 @@ Os números devem estar no formato E.164: sinal de `+`, código do país, DDD e 
 
 ### 2. Enviar uma mensagem
 
-Abra **Envio**, selecione uma lista, escreva a mensagem e confirme o disparo. O servidor processa cada número e retorna quantos envios foram aceitos ou recusados.
+Abra **Envio**, escolha Twilio ou SMSFire, selecione uma lista, escreva a mensagem e confirme o disparo. O servidor retorna quantos envios foram aceitos ou recusados.
+
+A Twilio processa os destinatários individualmente. A SMSFire envia a lista em uma única chamada ao endpoint de lote da API v3. O limite da interface é de 100 destinatários por disparo em ambos os provedores.
 
 ### 3. Consultar o relatório
 
@@ -126,6 +138,18 @@ Abra **Relatório** para visualizar:
 - falhas e mensagens ainda em processamento.
 
 O gráfico consulta a API da Twilio e considera até os 1.000 registros de saída mais recentes.
+
+### 4. Comparar planos
+
+Abra **Planos** e informe o volume mensal previsto. O painel calcula mensalidade mais consumo e destaca a opção de menor custo estimado:
+
+| Plano | Mensalidade | Valor por SMS | Observação |
+|---|---:|---:|---|
+| Avulso | R$ 0,00 | R$ 0,095 | R$ 0,10 com 5% de desconto usando `FIRE5` |
+| Starter | R$ 149,00 | R$ 0,088 | Melhor estimativa a partir de 21.286 SMS/mês |
+| Growth | R$ 599,00 | R$ 0,080 | Melhor estimativa acima de 56.250 SMS/mês |
+
+Esses valores foram informados para o projeto. Confirme condições comerciais, impostos e validade do cupom diretamente com a SMSFire.
 
 ## API
 
@@ -152,20 +176,25 @@ Authorization: Bearer <API_KEY>
 ```json
 {
   "to": "+5511999999999",
-  "body": "Olá pela Twilio"
+  "body": "Olá pelo smsconsole",
+  "provider": "smsfire"
 }
 ```
+
+O campo `provider` aceita `twilio` ou `smsfire` e usa `twilio` quando omitido.
 
 Resposta:
 
 ```json
 {
+  "provider": "smsfire",
   "message": {
-    "sid": "SMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "sid": "019fb102-d95a-758b-a810-9e75c1875361",
     "to": "+5511999999999",
-    "from": "+15005550006",
+    "from": null,
     "status": "queued",
-    "dateCreated": "2026-09-01T12:00:00.000Z"
+    "dateCreated": "2026-09-01T12:00:00.000Z",
+    "provider": "smsfire"
   }
 }
 ```
@@ -178,8 +207,11 @@ Resposta:
 | `POST` | `/v1/messages` | Envio individual | API key |
 | `POST` | `/ui/messages` | Envio individual pela interface | Apenas local |
 | `POST` | `/ui/broadcasts` | Envio para até 100 destinatários | Apenas local |
+| `GET` | `/ui/providers` | Provedores configurados, sem expor credenciais | Apenas local |
 | `GET` | `/ui/report` | Relatório dos últimos sete dias | Apenas local |
 | `POST` | `/webhooks/twilio/message-status` | Atualização de status | Assinatura Twilio |
+
+Referências da integração: [autenticação da API v3](https://docs.smsfire.com.br/apis-v3/autenticacao) e [envio de mensagens](https://docs.smsfire.com.br/apis-v3/sms/api/enviar-mensagem).
 
 ## Webhook de status
 
@@ -199,7 +231,7 @@ O endpoint valida o header `X-Twilio-Signature` com o Auth Token. Mantenha `TWIL
 
 ## Segurança
 
-- Credenciais carregadas exclusivamente por variáveis de ambiente.
+- Credenciais Twilio e SMSFire carregadas exclusivamente por variáveis de ambiente.
 - `.env`, artefatos de build e dependências fora do Git.
 - API key comparada com `timingSafeEqual`.
 - Limite de requisições nos endpoints de envio.
@@ -231,7 +263,7 @@ src/
   app.ts              rotas, validações e segurança
   config.ts           leitura das variáveis de ambiente
   server.ts           inicialização e encerramento do servidor
-  sms-service.ts      integração e relatório da Twilio
+  sms-service.ts      integrações Twilio/SMSFire e relatório da Twilio
 tests/
   app.test.ts         testes da API e da interface
 ```
@@ -240,5 +272,7 @@ tests/
 
 - Listas e histórico são locais ao navegador e não são sincronizados entre dispositivos.
 - O histórico visual registra o status retornado no momento do envio; o gráfico usa os status atuais consultados na Twilio.
-- O envio em lote é sequencial e limitado a 100 destinatários por solicitação.
+- O relatório remoto atual é exclusivo da Twilio; os envios SMSFire aparecem no histórico local.
+- A Twilio é processada sequencialmente; a SMSFire usa o endpoint em massa. Ambos aceitam até 100 destinatários por solicitação nesta interface.
+- A SMSFire aceita até 765 caracteres por mensagem na API v3; a Twilio aceita até 1.600 nesta aplicação.
 - Contas trial continuam sujeitas às restrições de destinatários e conteúdo da Twilio.

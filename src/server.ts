@@ -1,15 +1,25 @@
 import { createApp } from "./app.js";
 import { config } from "./config.js";
-import { TwilioSmsService } from "./sms-service.js";
+import { SmsFireSmsService, TwilioSmsService, type SmsProviderId, type SmsService } from "./sms-service.js";
 
-const smsService = new TwilioSmsService(
-  config.twilioAccountSid,
-  config.twilioAuthToken,
-  config.twilioPhoneNumber,
-);
+const smsProviders: Partial<Record<SmsProviderId, SmsService>> = {
+  twilio: new TwilioSmsService(
+    config.twilioAccountSid,
+    config.twilioAuthToken,
+    config.twilioPhoneNumber,
+  ),
+};
+
+if (config.smsFireUsername && config.smsFireApiToken) {
+  smsProviders.smsfire = new SmsFireSmsService(
+    config.smsFireUsername,
+    config.smsFireApiToken,
+    config.smsFireBaseUrl,
+  );
+}
 
 const app = createApp({
-  smsService,
+  smsProviders,
   apiKey: config.apiKey,
   twilioAuthToken: config.twilioAuthToken,
   publicBaseUrl: config.publicBaseUrl,

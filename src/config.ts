@@ -12,9 +12,20 @@ const environmentSchema = z.object({
   TWILIO_ACCOUNT_SID: z.string().regex(/^AC[a-fA-F0-9]{32}$/, "TWILIO_ACCOUNT_SID invalido"),
   TWILIO_AUTH_TOKEN: z.string().min(1, "TWILIO_AUTH_TOKEN e obrigatorio"),
   TWILIO_PHONE_NUMBER: z.string().regex(/^\+[1-9]\d{7,14}$/, "TWILIO_PHONE_NUMBER deve estar no formato E.164"),
+  SMSFIRE_USERNAME: z.string().trim().default(""),
+  SMSFIRE_API_TOKEN: z.string().trim().default(""),
+  SMSFIRE_BASE_URL: z.url().default("https://api-v3.smsfire.com.br"),
   API_KEY: z.string().min(24, "API_KEY deve ter pelo menos 24 caracteres"),
   PUBLIC_BASE_URL: z.union([z.url(), z.literal("")]).default(""),
   TWILIO_VALIDATE_WEBHOOKS: booleanFromString,
+}).superRefine((value, context) => {
+  if (Boolean(value.SMSFIRE_USERNAME) !== Boolean(value.SMSFIRE_API_TOKEN)) {
+    context.addIssue({
+      code: "custom",
+      path: ["SMSFIRE_USERNAME"],
+      message: "SMSFIRE_USERNAME e SMSFIRE_API_TOKEN devem ser informados juntos",
+    });
+  }
 });
 
 const parsed = environmentSchema.safeParse(process.env);
@@ -33,6 +44,9 @@ export const config = {
   twilioAccountSid: parsed.data.TWILIO_ACCOUNT_SID,
   twilioAuthToken: parsed.data.TWILIO_AUTH_TOKEN,
   twilioPhoneNumber: parsed.data.TWILIO_PHONE_NUMBER,
+  smsFireUsername: parsed.data.SMSFIRE_USERNAME,
+  smsFireApiToken: parsed.data.SMSFIRE_API_TOKEN,
+  smsFireBaseUrl: parsed.data.SMSFIRE_BASE_URL.replace(/\/$/, ""),
   apiKey: parsed.data.API_KEY,
   publicBaseUrl: parsed.data.PUBLIC_BASE_URL.replace(/\/$/, ""),
   validateTwilioWebhooks: parsed.data.TWILIO_VALIDATE_WEBHOOKS,

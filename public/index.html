@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Painel local para envio de SMS pela Twilio" />
+    <meta name="description" content="Painel local para disparo de SMS por múltiplos provedores" />
     <title>SMS Console</title>
     <link rel="stylesheet" href="/styles.css" />
     <script src="/app.js" defer></script>
@@ -13,7 +13,7 @@
       <aside class="sidebar">
         <a class="wordmark" href="#envio" data-nav="compose" aria-label="smsconsole">
           <span class="brand-name"><b>sms</b><span>console</span><i>.</i></span>
-          <small>Twilio messaging</small>
+          <small>Central de mensagens</small>
         </a>
 
         <nav class="main-nav" aria-label="Navegação principal">
@@ -31,17 +31,21 @@
             <span>Relatório</span>
             <em id="message-nav-count">0</em>
           </button>
+          <button class="nav-item" type="button" data-nav="plans">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12H4zM4 10h16M8 15h3" /></svg>
+            <span>Planos</span>
+          </button>
         </nav>
 
         <div class="sidebar-meta">
           <span><i></i> API online</span>
-          <small>Twilio · Local</small>
+          <small id="provider-summary">Verificando provedores...</small>
         </div>
       </aside>
 
       <main class="main">
         <header class="mobile-header">
-          <a class="wordmark" href="#envio" data-nav="compose"><span class="brand-name"><b>sms</b><span>console</span><i>.</i></span><small>Twilio messaging</small></a>
+          <a class="wordmark" href="#envio" data-nav="compose"><span class="brand-name"><b>sms</b><span>console</span><i>.</i></span><small>Central de mensagens</small></a>
           <button id="mobile-menu" type="button" aria-label="Abrir menu" aria-expanded="false">
             <span></span><span></span>
           </button>
@@ -53,11 +57,28 @@
               <span class="kicker">Envio</span>
               <h1>Disparo de Mensagens</h1>
             </div>
-            <p>Envie uma mensagem para uma lista autorizada na sua conta Twilio.</p>
+            <p>Escolha o provedor e dispare uma mensagem para a lista selecionada.</p>
           </header>
 
           <div class="compose-grid">
             <form id="sms-form" class="form-panel" novalidate>
+              <fieldset class="provider-field">
+                <legend>Provedor de envio</legend>
+                <div id="provider-options" class="provider-options">
+                  <button class="provider-option active" type="button" data-provider="twilio" aria-pressed="true">
+                    <span><strong>Twilio</strong><small>Conta atual</small></span>
+                    <i class="provider-state">Disponível</i>
+                  </button>
+                  <button class="provider-option" type="button" data-provider="smsfire" aria-pressed="false">
+                    <span><strong>SMSFire</strong><small>API v3</small></span>
+                    <i class="provider-state">Verificando</i>
+                  </button>
+                </div>
+                <input id="sms-provider" name="provider" type="hidden" value="twilio" />
+              </fieldset>
+
+              <div class="rule"></div>
+
               <div class="field">
                 <label for="recipient-list">Lista de destinatários</label>
                 <div class="list-picker">
@@ -100,14 +121,14 @@
 
             <aside class="context-panel">
               <div class="context-block">
-                <span class="context-label">Remetente</span>
-                <strong>Configurado no servidor</strong>
-                <small>Número Twilio</small>
+                <span class="context-label">Provedor selecionado</span>
+                <strong id="selected-provider-name">Twilio</strong>
+                <small id="selected-provider-status">Configurado no servidor</small>
               </div>
               <div class="context-block">
-                <span class="context-label">Plano</span>
-                <strong>Trial</strong>
-                <small>Apenas destinos verificados</small>
+                <span class="context-label">Condição</span>
+                <strong id="selected-provider-plan">Conta Twilio</strong>
+                <small><button class="context-link" type="button" data-nav="plans">Comparar planos</button></small>
               </div>
               <div class="context-block note-block">
                 <span class="context-label">Entrega</span>
@@ -168,7 +189,7 @@
 
           <div class="table-wrap messages-table">
             <table>
-              <thead><tr><th>Destinatário</th><th>Mensagem</th><th>Status</th><th>Data</th></tr></thead>
+              <thead><tr><th>Destinatário</th><th>Mensagem</th><th>Provedor</th><th>Status</th><th>Data</th></tr></thead>
               <tbody id="message-table"></tbody>
             </table>
             <div id="message-empty" class="empty-state">
@@ -190,6 +211,66 @@
             </header>
             <div id="delivery-chart" class="delivery-chart" role="img" aria-label="gráfico de mensagens enviadas e entregues nos últimos sete dias"></div>
             <p id="report-note" class="report-note">Carregando dados da Twilio...</p>
+          </section>
+        </section>
+
+        <section class="view" data-view="plans">
+          <header class="page-header">
+            <div>
+              <span class="kicker">Comparativo</span>
+              <h1>Planos</h1>
+            </div>
+            <p>Compare o custo mensal da SMSFire de acordo com o seu volume de disparos.</p>
+          </header>
+
+          <section class="pricing-panel" aria-labelledby="pricing-title">
+            <header class="pricing-toolbar">
+              <div>
+                <span class="kicker">Simulação mensal</span>
+                <h2 id="pricing-title">Quanto você pretende enviar?</h2>
+              </div>
+              <label class="volume-field" for="plan-volume">
+                <span>Volume de SMS</span>
+                <input id="plan-volume" type="number" min="0" max="10000000" step="1000" value="10000" inputmode="numeric" />
+              </label>
+            </header>
+
+            <div class="plan-list">
+              <article class="plan-row" data-plan="avulso">
+                <div class="plan-name">
+                  <span class="plan-index">01</span>
+                  <div><h3>Avulso</h3><p>Sem mensalidade</p></div>
+                </div>
+                <div class="plan-rate"><span>Por SMS</span><strong>R$ 0,10</strong><small>R$ 0,095 com FIRE5</small></div>
+                <div class="coupon-box"><span>Cupom</span><button id="copy-coupon" type="button" title="Copiar cupom"><b>FIRE5</b><small>Copiar</small></button></div>
+                <div class="plan-total"><span>Total estimado</span><strong data-plan-total="avulso">R$ 950,00</strong></div>
+              </article>
+
+              <article class="plan-row" data-plan="starter">
+                <div class="plan-name">
+                  <span class="plan-index">02</span>
+                  <div><h3>Starter</h3><p>R$ 149,00 por mês</p></div>
+                </div>
+                <div class="plan-rate"><span>Por SMS</span><strong>R$ 0,088</strong><small>além da mensalidade</small></div>
+                <div class="plan-detail"><span>Indicado a partir de</span><strong>21.286 SMS/mês</strong></div>
+                <div class="plan-total"><span>Total estimado</span><strong data-plan-total="starter">R$ 1.029,00</strong></div>
+              </article>
+
+              <article class="plan-row" data-plan="growth">
+                <div class="plan-name">
+                  <span class="plan-index">03</span>
+                  <div><h3>Growth</h3><p>R$ 599,00 por mês</p></div>
+                </div>
+                <div class="plan-rate"><span>Por SMS</span><strong>R$ 0,080</strong><small>além da mensalidade</small></div>
+                <div class="plan-detail"><span>Indicado acima de</span><strong>56.250 SMS/mês</strong></div>
+                <div class="plan-total"><span>Total estimado</span><strong data-plan-total="growth">R$ 1.399,00</strong></div>
+              </article>
+            </div>
+
+            <footer class="pricing-footer">
+              <p id="plan-recommendation"><strong>Para 10.000 SMS:</strong> o plano Avulso tem o menor custo estimado.</p>
+              <small>Estimativa: mensalidade + volume × preço por SMS; o Avulso considera o cupom FIRE5. Confirme condições e impostos com a SMSFire.</small>
+            </footer>
           </section>
         </section>
       </main>

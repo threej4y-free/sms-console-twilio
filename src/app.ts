@@ -5,10 +5,15 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import twilio from "twilio";
 import { z } from "zod";
-import type { SmsService } from "./sms-service.js";
+import {
+  SmsProviderError,
+  smsProviderIds,
+  type SmsProviderId,
+  type SmsService,
+} from "./sms-service.js";
 
 interface AppDependencies {
-  smsService: SmsService;
+  smsProviders: Partial<Record<SmsProviderId, SmsService>>;
   apiKey: string;
   twilioAuthToken: string;
   publicBaseUrl: string;
@@ -16,9 +21,12 @@ interface AppDependencies {
   enableLocalUi: boolean;
 }
 
+const providerSchema = z.enum(smsProviderIds).default("twilio");
+
 const sendSmsSchema = z.object({
   to: z.string().regex(/^\+[1-9]\d{7,14}$/, "Use o formato E.164, por exemplo +5511999999999"),
   body: z.string().trim().min(1, "A mensagem nao pode estar vazia").max(1600, "A mensagem deve ter no maximo 1600 caracteres"),
+  provider: providerSchema,
 }).strict();
 
 const sendBroadcastSchema = z.object({
@@ -27,7 +35,31 @@ const sendBroadcastSchema = z.object({
     .min(1, "A lista precisa ter pelo menos um destinatario")
     .max(100, "Cada envio aceita no maximo 100 destinatarios"),
   body: z.string().trim().min(1, "A mensagem nao pode estar vazia").max(1600, "A mensagem deve ter no maximo 1600 caracteres"),
+  provider: providerSchema,
 }).strict();
+
+function providerService(
+  dependencies: AppDependencies,
+  provider: SmsProviderId,
+): SmsService {
+  const service = dependencies.smsProviders[provider];
+  if (!service) {
+    throw new SmsProviderError(
+      provider,
+      503,
+      provider === "smsfire"
+        ? "Configure SMSFIRE_USERNAME e SMSFIRE_API_TOKEN no servidor"
+        : "Provedor indisponivel",
+    );
+  }
+  return service;
+}
+
+function validateProviderMessage(provider: SmsProviderId, body: string): void {
+  if (provider === "smsfire" && body.length > 765) {
+    throw new SmsProviderError("smsfire", 400, "A SMSFire aceita mensagens de ate 765 caracteres");
+  }
+}
 
 function hasValidApiKey(received: string | undefined, expected: string): boolean {
   if (!received) return false;
@@ -120,15 +152,18 @@ export function createApp(dependencies: AppDependencies) {
         return;
       }
 
-      const statusCallback = dependencies.publicBaseUrl
+      const { provider, ...messageInput } = parsed.data;
+      validateProviderMessage(provider, messageInput.body);
+      const service = providerService(dependencies, provider);
+      const statusCallback = provider === "twilio" && dependencies.publicBaseUrl
         ? `${dependencies.publicBaseUrl}/webhooks/twilio/message-status`
         : undefined;
-      const message = await dependencies.smsService.send({
-        ...parsed.data,
+      const message = await service.send({
+        ...messageInput,
         ...(statusCallback ? { statusCallback } : {}),
       });
 
-      response.status(201).json({ message });
+      response.status(201).json({ provider, message });
     } catch (error) {
       next(error);
     }
@@ -147,6 +182,19 @@ export function createApp(dependencies: AppDependencies) {
     express.json({ limit: "20kb" }),
     apiKeyMiddleware(dependencies.apiKey),
     sendMessage,
+  );
+
+  app.get(
+    "/ui/providers",
+    localOnlyMiddleware(dependencies.enableLocalUi),
+    (_request, response) => {
+      response.json({
+        providers: [
+          { id: "twilio", name: "Twilio", configured: Boolean(dependencies.smsProviders.twilio) },
+          { id: "smsfire", name: "SMSFire", configured: Boolean(dependencies.smsProviders.smsfire) },
+        ],
+      });
+    },
   );
 
   app.post(
@@ -174,36 +222,50 @@ export function createApp(dependencies: AppDependencies) {
           return;
         }
 
+        const { provider, body } = parsed.data;
+        validateProviderMessage(provider, body);
+        const service = providerService(dependencies, provider);
         const recipients = [...new Set(parsed.data.recipients)];
-        const statusCallback = dependencies.publicBaseUrl
+        const statusCallback = provider === "twilio" && dependencies.publicBaseUrl
           ? `${dependencies.publicBaseUrl}/webhooks/twilio/message-status`
           : undefined;
         const results = [];
 
-        for (const to of recipients) {
-          try {
-            const message = await dependencies.smsService.send({
-              to,
-              body: parsed.data.body,
-              ...(statusCallback ? { statusCallback } : {}),
-            });
-            results.push({ ok: true as const, to, message });
-          } catch (error) {
-            if (error instanceof twilio.RestException) {
-              results.push({
-                ok: false as const,
+        if (service.sendBulk) {
+          const sentMessages = await service.sendBulk(recipients.map((to) => ({ to, body })));
+          for (const message of sentMessages) {
+            const failed = ["failed", "undelivered"].includes(message.status);
+            results.push(failed
+              ? { ok: false as const, to: message.to, error: { message: `Status ${message.status}` } }
+              : { ok: true as const, to: message.to, message });
+          }
+        } else {
+          for (const to of recipients) {
+            try {
+              const message = await service.send({
                 to,
-                error: { code: error.code, message: error.message },
+                body,
+                ...(statusCallback ? { statusCallback } : {}),
               });
-              continue;
+              results.push({ ok: true as const, to, message });
+            } catch (error) {
+              if (error instanceof twilio.RestException) {
+                results.push({
+                  ok: false as const,
+                  to,
+                  error: { code: error.code, message: error.message },
+                });
+                continue;
+              }
+              throw error;
             }
-            throw error;
           }
         }
 
         const sent = results.filter((item) => item.ok).length;
         const failed = results.length - sent;
         response.status(failed === 0 ? 201 : 207).json({
+          provider,
           summary: { total: results.length, sent, failed },
           results,
         });
@@ -218,7 +280,11 @@ export function createApp(dependencies: AppDependencies) {
     localOnlyMiddleware(dependencies.enableLocalUi),
     async (_request, response, next) => {
       try {
-        response.json({ report: await dependencies.smsService.getReport() });
+        const reportService = providerService(dependencies, "twilio");
+        if (!reportService.getReport) {
+          throw new SmsProviderError("twilio", 503, "Relatorio da Twilio indisponivel");
+        }
+        response.json({ provider: "twilio", report: await reportService.getReport() });
       } catch (error) {
         next(error);
       }
@@ -251,6 +317,15 @@ export function createApp(dependencies: AppDependencies) {
   });
 
   const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => {
+    if (error instanceof SmsProviderError) {
+      response.status(error.status).json({
+        error: `Falha no envio pela ${error.provider === "smsfire" ? "SMSFire" : "Twilio"}`,
+        provider: error.provider,
+        providerError: { message: error.message, details: error.details ?? null },
+      });
+      return;
+    }
+
     if (error instanceof twilio.RestException) {
       response.status(error.status || 502).json({
         error: "Falha no envio pela Twilio",
