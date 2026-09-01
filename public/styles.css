@@ -843,7 +843,15 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
 .pricing-footer > small { max-width: 470px; color: var(--faint); font-size: 11px; line-height: 1.55; text-align: right; }
 .pricing-note-link { color: #ff747d; font-weight: 650; text-decoration: none; }
 .pricing-note-link:hover { text-decoration: underline; }
-.twilio-plan-row { background: rgba(255, 255, 255, .012); }
+.twilio-plan-row { background: transparent; }
+.twilio-plan-row::after {
+  position: absolute;
+  z-index: 0;
+  inset: 0 -28px;
+  background: rgba(255, 255, 255, .018);
+  content: "";
+}
+.twilio-plan-row > * { position: relative; z-index: 1; }
 .twilio-plan-row .plan-index { color: #c2c8ce; }
 .twilio-plan-row .plan-total strong { color: #dfe3e6; }
 
@@ -889,6 +897,7 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
   .plan-list { padding: 0 20px; }
   .plan-row { grid-template-columns: 1fr; gap: 14px; }
   .plan-row::before { left: -20px; }
+  .twilio-plan-row::after { inset-inline: -20px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
