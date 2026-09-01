@@ -226,12 +226,12 @@
           <section class="pricing-panel" aria-labelledby="pricing-title">
             <header class="pricing-toolbar">
               <div>
-                <span class="kicker">SMSFire · Simulação mensal</span>
+                <span class="kicker">Simulação mensal</span>
                 <h2 id="pricing-title">Quanto você pretende enviar?</h2>
               </div>
               <label class="volume-field" for="plan-volume">
                 <span>Volume de SMS</span>
-                <input id="plan-volume" type="number" min="0" max="10000000" step="1000" value="10000" inputmode="numeric" />
+                <input id="plan-volume" type="number" min="0" max="10000000" step="1000" value="200000" inputmode="numeric" />
               </label>
             </header>
 
@@ -243,7 +243,7 @@
                 </div>
                 <div class="plan-rate"><span>Por SMS</span><strong>R$ 0,10</strong><small>tarifa avulsa</small></div>
                 <div class="coupon-box"><span>Recarga de saldo</span><button id="copy-coupon" type="button" title="Copiar cupom"><b>FIRE5</b><small>5% de desconto</small></button></div>
-                <div class="plan-total"><span>Total estimado</span><strong data-plan-total="avulso">R$ 1.000,00</strong></div>
+                <div class="plan-total"><span>Total estimado</span><strong data-plan-total="avulso">R$ 20.000,00</strong></div>
               </article>
 
               <article class="plan-row" data-plan="starter">
@@ -253,7 +253,7 @@
                 </div>
                 <div class="plan-rate"><span>Por SMS</span><strong>R$ 0,088</strong><small>além da mensalidade</small></div>
                 <div class="plan-detail"><span>Indicado a partir de</span><strong>12.417 SMS/mês</strong></div>
-                <div class="plan-total"><span>Total estimado</span><strong data-plan-total="starter">R$ 1.029,00</strong></div>
+                <div class="plan-total"><span>Total estimado</span><strong data-plan-total="starter">R$ 17.749,00</strong></div>
               </article>
 
               <article class="plan-row" data-plan="growth">
@@ -263,7 +263,7 @@
                 </div>
                 <div class="plan-rate"><span>Por SMS</span><strong>R$ 0,080</strong><small>além da mensalidade</small></div>
                 <div class="plan-detail"><span>Indicado acima de</span><strong>56.250 SMS/mês</strong></div>
-                <div class="plan-total"><span>Total estimado</span><strong data-plan-total="growth">R$ 1.399,00</strong></div>
+                <div class="plan-total"><span>Total estimado</span><strong data-plan-total="growth">R$ 16.599,00</strong></div>
               </article>
 
               <article class="plan-row" data-plan="scale">
@@ -273,51 +273,23 @@
                 </div>
                 <div class="plan-rate"><span>Por SMS</span><strong>R$ 0,076</strong><small>além da mensalidade</small></div>
                 <div class="plan-detail"><span>Indicado acima de</span><strong>225.000 SMS/mês</strong></div>
-                <div class="plan-total"><span>Total estimado</span><strong data-plan-total="scale">R$ 2.259,00</strong></div>
+                <div class="plan-total"><span>Total estimado</span><strong data-plan-total="scale">R$ 16.699,00</strong></div>
+              </article>
+
+              <article class="plan-row twilio-plan-row">
+                <div class="plan-name">
+                  <span class="plan-index">05</span>
+                  <div><h3>Twilio</h3><p>Pagamento por uso</p></div>
+                </div>
+                <div class="plan-rate"><span>Por segmento</span><strong>US$ 0,0599</strong><small>SMS enviado ao Brasil</small></div>
+                <div class="plan-detail"><span>Número internacional</span><strong>A partir de US$ 1,15/mês</strong></div>
+                <div class="plan-total"><span>Total estimado</span><strong id="twilio-volume-total">US$ 11.980,00</strong></div>
               </article>
             </div>
 
             <footer class="pricing-footer">
-              <p id="plan-recommendation"><strong>Para 10.000 SMS:</strong> o plano Avulso tem o menor custo estimado.</p>
-              <small>Estimativa: mensalidade + volume × preço por SMS. O FIRE5 dá 5% de desconto apenas na recarga de saldo e não altera a tarifa de R$ 0,10/SMS.</small>
-            </footer>
-          </section>
-
-          <section class="twilio-pricing-panel" aria-labelledby="twilio-pricing-title">
-            <header class="twilio-pricing-heading">
-              <div>
-                <span class="kicker">Twilio · Brasil</span>
-                <h2 id="twilio-pricing-title">Pagamento por uso</h2>
-                <p>Sem pacote mensal de mensagens. A cobrança varia conforme o destino e a quantidade de segmentos enviados.</p>
-              </div>
-              <div class="twilio-main-rate">
-                <span>SMS de saída</span>
-                <strong>US$ 0,0599</strong>
-                <small>por segmento para o Brasil</small>
-              </div>
-            </header>
-
-            <div class="twilio-pricing-grid">
-              <article>
-                <span>Custo estimado para o volume</span>
-                <strong id="twilio-volume-total">US$ 599,00</strong>
-                <small>Somente os segmentos enviados, sem conversão cambial.</small>
-              </article>
-              <article>
-                <span>Número internacional</span>
-                <strong>A partir de US$ 1,15/mês</strong>
-                <small>O aluguel do número é cobrado separadamente.</small>
-              </article>
-              <article>
-                <span>Modelo comercial</span>
-                <strong>Pay as you go</strong>
-                <small>Descontos maiores podem exigir compromisso anual de volume.</small>
-              </article>
-            </div>
-
-            <footer class="twilio-pricing-footer">
-              <p>Mensagens são cobradas por segmento. Taxas de operadora podem ser adicionadas e mensagens com status “Failed” podem gerar US$ 0,001 de processamento.</p>
-              <a href="https://www.twilio.com/pt-br/sms/pricing/br" target="_blank" rel="noreferrer">Consultar preços oficiais</a>
+              <p id="plan-recommendation"><strong>Para 200.000 SMS:</strong> o plano Growth tem o menor custo estimado na SMSFire.</p>
+              <small>SMSFire: mensalidade + volume × preço por SMS. Twilio: valor em dólar por segmento, sem aluguel do número, câmbio ou taxas adicionais. <a class="pricing-note-link" href="https://www.twilio.com/pt-br/sms/pricing/br" target="_blank" rel="noreferrer">Preços oficiais</a></small>
             </footer>
           </section>
         </section>

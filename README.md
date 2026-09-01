@@ -152,7 +152,7 @@ Abra **Planos** e informe o volume mensal previsto. O painel calcula mensalidade
 
 O cupom não altera o preço unitário da mensagem avulsa, que permanece em R$ 0,10. Esses valores foram informados para o projeto; confirme condições comerciais, impostos e validade do cupom diretamente com a SMSFire.
 
-Logo abaixo, o painel apresenta a Twilio separadamente. Para SMS enviado ao Brasil por número internacional, a tarifa exibida é de **US$ 0,0599 por segmento**, sem conversão automática para reais. O aluguel do número internacional parte de **US$ 1,15 por mês**. Taxas de operadora e outros custos podem ser adicionados. Consulte sempre a [tabela oficial da Twilio para o Brasil](https://www.twilio.com/pt-br/sms/pricing/br).
+Na linha imediatamente abaixo do Scale, o painel apresenta a Twilio usando o mesmo volume digitado no simulador. Para SMS enviado ao Brasil por número internacional, a tarifa exibida é de **US$ 0,0599 por segmento**, sem conversão automática para reais. Assim, 200.000 segmentos custam aproximadamente **US$ 11.980,00**, sem incluir aluguel do número, câmbio ou taxas adicionais. O aluguel do número internacional parte de **US$ 1,15 por mês**. Consulte sempre a [tabela oficial da Twilio para o Brasil](https://www.twilio.com/pt-br/sms/pricing/br).
 
 ## API
 

@@ -436,7 +436,7 @@ function updatePlanEstimate() {
   }
 
   document.querySelector("#plan-recommendation").innerHTML =
-    `<strong>Para ${formatNumber(volume)} SMS:</strong> o plano ${best.name} tem o menor custo estimado.`;
+    `<strong>Para ${formatNumber(volume)} SMS:</strong> o plano ${best.name} tem o menor custo estimado na SMSFire.`;
   document.querySelector("#twilio-volume-total").textContent = formatUsd(volume * 0.0599);
 }
 

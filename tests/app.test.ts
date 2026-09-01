@@ -56,6 +56,9 @@ describe("API de SMS", () => {
     expect(response.text).toContain("Planos");
     expect(response.text).toContain("Scale");
     expect(response.text).toContain("US$ 0,0599");
+    expect(response.text).toContain('value="200000"');
+    expect(response.text.indexOf('class="plan-row twilio-plan-row"'))
+      .toBeGreaterThan(response.text.indexOf('data-plan="scale"'));
     expect(response.headers["content-type"]).toContain("text/html");
   });
 
