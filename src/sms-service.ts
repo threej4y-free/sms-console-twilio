@@ -158,6 +158,7 @@ export class SmsFireSmsService implements SmsService {
     private readonly username: string,
     private readonly apiToken: string,
     private readonly baseUrl = "https://api-v3.smsfire.com.br",
+    private readonly timeoutMs = 10_000,
   ) {}
 
   async send(input: SendSmsInput): Promise<SentSms> {
@@ -169,20 +170,34 @@ export class SmsFireSmsService implements SmsService {
   }
 
   async sendBulk(inputs: SendSmsInput[]): Promise<SentSms[]> {
-    const response = await fetch(`${this.baseUrl.replace(/\/$/, "")}/sms/send/bulk`, {
-      method: "POST",
-      headers: {
-        "Api_Token": this.apiToken,
-        "Content-Type": "application/json",
-        "Username": this.username,
-      },
-      body: JSON.stringify({
-        messages: inputs.map((input) => ({
-          to: input.to.replace(/^\+/, ""),
-          text: input.body,
-        })),
-      }),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl.replace(/\/$/, "")}/sms/send/bulk`, {
+        method: "POST",
+        headers: {
+          "Api_Token": this.apiToken,
+          "Content-Type": "application/json",
+          "Username": this.username,
+        },
+        body: JSON.stringify({
+          messages: inputs.map((input) => ({
+            to: input.to.replace(/^\+/, ""),
+            text: input.body,
+          })),
+        }),
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+    } catch (error) {
+      const timedOut = error instanceof DOMException
+        && ["AbortError", "TimeoutError"].includes(error.name);
+      throw new SmsProviderError(
+        "smsfire",
+        504,
+        timedOut
+          ? `A SMSFire nao respondeu em ${this.timeoutMs}ms`
+          : "Nao foi possivel conectar a SMSFire",
+      );
+    }
 
     const payload = await response.json().catch(() => null) as SmsFireBulkResponse | { message?: string } | null;
 

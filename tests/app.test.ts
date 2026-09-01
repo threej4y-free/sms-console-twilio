@@ -1,14 +1,22 @@
 import request from "supertest";
+import twilio from "twilio";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app.js";
 import { SmsFireSmsService, type SmsService } from "../src/sms-service.js";
 
 const apiKey = "test_api_key_with_at_least_24_chars";
 
+interface BuildAppOptions {
+  enableLocalUi?: boolean;
+  publicBaseUrl?: string;
+  validateTwilioWebhooks?: boolean;
+}
+
 function buildApp(
   send = vi.fn<SmsService["send"]>(),
   getReport = vi.fn<NonNullable<SmsService["getReport"]>>(),
   smsFireService?: SmsService,
+  options: BuildAppOptions = {},
 ) {
   send.mockResolvedValue({
     sid: "SM00000000000000000000000000000000",
@@ -38,9 +46,9 @@ function buildApp(
       },
       apiKey,
       twilioAuthToken: "test-token",
-      publicBaseUrl: "",
-      validateTwilioWebhooks: false,
-      enableLocalUi: true,
+      publicBaseUrl: options.publicBaseUrl ?? "",
+      validateTwilioWebhooks: options.validateTwilioWebhooks ?? false,
+      enableLocalUi: options.enableLocalUi ?? true,
     }),
   };
 }
@@ -56,6 +64,7 @@ describe("API de SMS", () => {
     expect(response.text).toContain("Planos");
     expect(response.text).toContain("Scale");
     expect(response.text).toContain("US$ 0,0599");
+    expect(response.text).toContain("Disparos por provedor");
     expect(response.text).toContain('value="200000"');
     expect(response.text.indexOf('class="plan-row twilio-plan-row"'))
       .toBeGreaterThan(response.text.indexOf('data-plan="scale"'));
@@ -130,6 +139,16 @@ describe("API de SMS", () => {
     });
   });
 
+  it("bloqueia as rotas locais quando a interface esta desativada", async () => {
+    const { app, send } = buildApp(undefined, undefined, undefined, { enableLocalUi: false });
+    const response = await request(app)
+      .post("/ui/messages")
+      .send({ to: "+5511999999999", body: "Envio bloqueado" });
+
+    expect(response.status).toBe(403);
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it("envia uma mensagem para todos os destinatarios da lista", async () => {
     const { app, send } = buildApp();
     const response = await request(app)
@@ -197,6 +216,57 @@ describe("API de SMS", () => {
     expect(response.body.provider).toBe("smsfire");
   });
 
+  it("retorna resultado parcial quando uma mensagem do lote falha", async () => {
+    const sendBulk = vi.fn<NonNullable<SmsService["sendBulk"]>>().mockResolvedValue([
+      {
+        sid: "smsfire-ok",
+        to: "+5511999999999",
+        from: null,
+        status: "queued",
+        dateCreated: "2026-09-01T12:00:00.000Z",
+        provider: "smsfire",
+      },
+      {
+        sid: "smsfire-failed",
+        to: "+5511888888888",
+        from: null,
+        status: "failed",
+        dateCreated: "2026-09-01T12:00:00.000Z",
+        provider: "smsfire",
+      },
+    ]);
+    const { app } = buildApp(undefined, undefined, {
+      send: vi.fn<SmsService["send"]>(),
+      sendBulk,
+    });
+    const response = await request(app)
+      .post("/ui/broadcasts")
+      .send({
+        provider: "smsfire",
+        recipients: ["+5511999999999", "+5511888888888"],
+        body: "Lote parcial",
+      });
+
+    expect(response.status).toBe(207);
+    expect(response.body.summary).toEqual({ total: 2, sent: 1, failed: 1 });
+    expect(response.body.results.map((item: { ok: boolean }) => item.ok)).toEqual([true, false]);
+  });
+
+  it("limita a quantidade de requisicoes de envio por minuto", async () => {
+    const { app } = buildApp();
+    const statuses = [];
+
+    for (let index = 0; index < 11; index += 1) {
+      const response = await request(app)
+        .post("/ui/messages")
+        .send({ to: "+5511999999999", body: `Mensagem ${index}` });
+      statuses.push(response.status);
+    }
+
+    expect(statuses.slice(0, 10).every((status) => status === 201)).toBe(true);
+    expect(statuses[10]).toBe(429);
+  });
+
   it("retorna o relatorio de entrega da Twilio", async () => {
     const { app, getReport } = buildApp();
     const response = await request(app).get("/ui/report");
@@ -214,6 +284,31 @@ describe("API de SMS", () => {
       .send({ MessageSid: "SM123", MessageStatus: "delivered" });
 
     expect(response.status).toBe(204);
+  });
+
+  it("valida uma assinatura Twilio real no webhook", async () => {
+    const publicBaseUrl = "https://sms.example.com";
+    const webhookUrl = `${publicBaseUrl}/webhooks/twilio/message-status`;
+    const payload = { MessageSid: "SM123", MessageStatus: "delivered" };
+    const signature = twilio.getExpectedTwilioSignature("test-token", webhookUrl, payload);
+    const { app } = buildApp(undefined, undefined, undefined, {
+      publicBaseUrl,
+      validateTwilioWebhooks: true,
+    });
+
+    const validResponse = await request(app)
+      .post("/webhooks/twilio/message-status")
+      .set("x-twilio-signature", signature)
+      .type("form")
+      .send(payload);
+    const invalidResponse = await request(app)
+      .post("/webhooks/twilio/message-status")
+      .set("x-twilio-signature", "assinatura-invalida")
+      .type("form")
+      .send(payload);
+
+    expect(validResponse.status).toBe(204);
+    expect(invalidResponse.status).toBe(403);
   });
 });
 
@@ -246,7 +341,23 @@ describe("Cliente SMSFire", () => {
           Username: "usuario",
         },
         body: JSON.stringify({ messages: [{ to: "5511999999999", text: "Mensagem de teste" }] }),
+        signal: expect.any(AbortSignal),
       }),
     );
+  });
+
+  it("interrompe a chamada quando a SMSFire excede o timeout", async () => {
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(
+      new DOMException("Tempo esgotado", "TimeoutError"),
+    ));
+    const service = new SmsFireSmsService(
+      "usuario",
+      "token",
+      "https://api-v3.smsfire.com.br",
+      1_000,
+    );
+
+    await expect(service.sendBulk([{ to: "+5511999999999", body: "Mensagem de teste" }]))
+      .rejects.toMatchObject({ provider: "smsfire", status: 504 });
   });
 });

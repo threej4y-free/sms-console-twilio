@@ -15,6 +15,7 @@ if (config.smsFireUsername && config.smsFireApiToken) {
     config.smsFireUsername,
     config.smsFireApiToken,
     config.smsFireBaseUrl,
+    config.smsFireTimeoutMs,
   );
 }
 

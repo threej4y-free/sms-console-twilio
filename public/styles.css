@@ -623,7 +623,10 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
 .messages-table th:nth-child(3) { width: 13%; }
 .messages-table th:nth-child(4) { width: 13%; }
 .messages-table th:nth-child(5) { width: 18%; }
-.provider-label { color: #c7ccd1; font-size: 10px; font-weight: 650; }
+.provider-label { display: inline-flex; align-items: center; gap: 6px; color: #c7ccd1; font-size: 10px; font-weight: 650; }
+.provider-label::before { width: 6px; height: 6px; border-radius: 2px; background: currentColor; content: ""; }
+.provider-label.twilio { color: #ff747d; }
+.provider-label.smsfire { color: #7f9cff; }
 .message-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .empty-state {
@@ -680,6 +683,8 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
 .report-summary i { width: 7px; height: 7px; border-radius: 2px; }
 .sent-dot { background: var(--faint); }
 .delivered-dot { background: var(--red); }
+.twilio-dot { background: var(--red); }
+.smsfire-dot { background: #6f8cff; }
 
 .delivery-chart {
   display: grid;
@@ -717,6 +722,8 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
 }
 .bar.sent { background: #555f69; }
 .bar.delivered { background: var(--red); }
+.bar.twilio { background: var(--red); }
+.bar.smsfire { background: #6f8cff; }
 .chart-value {
   position: absolute;
   top: -15px;
@@ -727,6 +734,7 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
 }
 .chart-label { color: var(--muted); font-size: 10px; }
 .report-note { margin: 14px 0 0; color: var(--faint); font-size: 10px; }
+.provider-report-section { margin-top: 28px; }
 
 .pricing-panel {
   margin-top: 28px;

@@ -197,10 +197,26 @@
             </div>
           </div>
 
-          <section class="report-section" aria-labelledby="report-title">
+          <section class="report-section provider-report-section" aria-labelledby="provider-report-title">
             <header class="report-heading">
               <div>
                 <span class="kicker">Últimos 7 dias</span>
+                <h2 id="provider-report-title">Disparos por provedor</h2>
+              </div>
+              <div class="report-summary" aria-label="resumo por provedor">
+                <span><i class="twilio-dot"></i><strong id="twilio-sent-count">0</strong> Twilio</span>
+                <span><i class="smsfire-dot"></i><strong id="smsfire-sent-count">0</strong> SMSFire</span>
+                <span><strong id="provider-total-count">0</strong> no total</span>
+              </div>
+            </header>
+            <div id="provider-chart" class="delivery-chart provider-chart" role="img" aria-label="gráfico de disparos pela Twilio e SMSFire nos últimos sete dias"></div>
+            <p class="report-note">Contagem baseada nos disparos registrados neste navegador.</p>
+          </section>
+
+          <section class="report-section" aria-labelledby="report-title">
+            <header class="report-heading">
+              <div>
+                <span class="kicker">Status Twilio · Últimos 7 dias</span>
                 <h2 id="report-title">Envios e entregas</h2>
               </div>
               <div class="report-summary" aria-label="resumo de entregas">
@@ -289,7 +305,7 @@
 
             <footer class="pricing-footer">
               <p id="plan-recommendation"><strong>Para 200.000 SMS:</strong> o plano Growth tem o menor custo estimado na SMSFire.</p>
-              <small>SMSFire: mensalidade + volume × preço por SMS. Twilio: valor em dólar por segmento, sem aluguel do número, câmbio ou taxas adicionais. <a class="pricing-note-link" href="https://www.twilio.com/pt-br/sms/pricing/br" target="_blank" rel="noreferrer">Preços oficiais</a></small>
+              <small>SMSFire: mensalidade + volume × preço por SMS. Twilio: valor em dólar por segmento, sem aluguel do número, câmbio ou taxas adicionais. Preços revisados em 1º de setembro de 2026. <a class="pricing-note-link" href="https://www.twilio.com/pt-br/sms/pricing/br" target="_blank" rel="noreferrer">Preços oficiais</a></small>
             </footer>
           </section>
         </section>

@@ -1,5 +1,7 @@
 # smsconsole.
 
+[![CI](https://github.com/threej4y-free/sms-console-twilio/actions/workflows/ci.yml/badge.svg)](https://github.com/threej4y-free/sms-console-twilio/actions/workflows/ci.yml)
+
 Painel local para organizar destinatários, escolher o provedor e disparar SMS pela Twilio ou SMSFire.
 
 O projeto combina uma API Node.js/TypeScript com uma interface web responsiva. As credenciais permanecem no servidor, as listas são armazenadas no navegador e o relatório consulta os status reais das mensagens na Twilio. A integração SMSFire utiliza a API v3 e seu endpoint de envio em massa.
@@ -12,7 +14,7 @@ O projeto combina uma API Node.js/TypeScript com uma interface web responsiva. A
 - Envio em lote pela SMSFire v3.
 - Cadastro de listas no navegador, sem banco de dados.
 - Histórico local dos envios realizados pela interface.
-- Relatório dos últimos sete dias com enviados, entregues, falhas e taxa de entrega.
+- Relatório dos últimos sete dias com disparos separados por provedor, entregas, falhas e taxa de entrega.
 - Comparador de planos SMSFire e estimativa de custo Twilio pelo mesmo volume.
 - Callback para atualizações de status da Twilio.
 - Validação de números no padrão E.164.
@@ -84,6 +86,7 @@ TWILIO_PHONE_NUMBER=+15005550006
 SMSFIRE_USERNAME=seu_usuario
 SMSFIRE_API_TOKEN=seu_token_http
 SMSFIRE_BASE_URL=https://api-v3.smsfire.com.br
+SMSFIRE_TIMEOUT_MS=10000
 
 API_KEY=gere-uma-chave-longa-e-aleatoria
 PUBLIC_BASE_URL=
@@ -142,6 +145,8 @@ O gráfico consulta a API da Twilio e considera até os 1.000 registros de saíd
 ### 4. Comparar planos
 
 Abra **Planos** e informe o volume mensal previsto. O painel calcula mensalidade mais consumo e destaca a opção de menor custo estimado:
+
+> Preços revisados em 1º de setembro de 2026. Tarifas podem mudar sem aviso; confirme os valores antes de contratar ou disparar grandes volumes.
 
 | Plano | Mensalidade | Valor por SMS | Observação |
 |---|---:|---:|---|
@@ -245,6 +250,24 @@ O endpoint valida o header `X-Twilio-Signature` com o Auth Token. Mantenha `TWIL
 
 Para disponibilizar o painel publicamente, implemente autenticação de usuário e autorização antes de habilitar disparos remotos.
 
+As rotas `/ui/*` verificam o endereço da conexão e são adequadas somente para desenvolvimento local. Um proxy executado na mesma máquina, combinado com `NODE_ENV` incorreto, pode fazer uma requisição externa chegar ao Express como local. Não publique a interface confiando apenas nessa verificação: use autenticação, autorização, configuração explícita de proxies confiáveis e mantenha as rotas locais desativadas em produção.
+
+## Uso responsável e prevenção de spam
+
+Este projeto é uma base técnica e não substitui análise jurídica ou as políticas dos provedores. Antes de usar em produção:
+
+- envie mensagens apenas para destinatários com uma base válida de consentimento ou outra autorização aplicável;
+- registre a origem e a data do consentimento;
+- identifique claramente o remetente e a finalidade da mensagem;
+- ofereça uma forma simples de descadastro e processe a solicitação antes de novos disparos;
+- mantenha uma lista de supressão independente das listas de campanha;
+- não use listas compradas, coletadas sem transparência ou com origem desconhecida;
+- limite frequência e horários de envio, monitore reclamações e interrompa campanhas com sinais de abuso;
+- minimize dados pessoais e defina prazos de retenção para listas, campanhas e logs;
+- revise as regras da Twilio, SMSFire, operadoras e a legislação aplicável ao público de destino.
+
+O descadastro automático e a lista de supressão ainda não estão implementados. Eles são requisitos antes de qualquer uso público ou comercial da interface.
+
 ## Scripts
 
 | Comando | Descrição |
@@ -279,3 +302,11 @@ tests/
 - A Twilio é processada sequencialmente; a SMSFire usa o endpoint em massa. Ambos aceitam até 100 destinatários por solicitação nesta interface.
 - A SMSFire aceita até 765 caracteres por mensagem na API v3; a Twilio aceita até 1.600 nesta aplicação.
 - Contas trial continuam sujeitas às restrições de destinatários e conteúdo da Twilio.
+
+## Próximos passos
+
+- Persistir campanhas, destinatários, eventos de entrega e histórico em banco de dados.
+- Adicionar autenticação de usuário e controle de acesso por função.
+- Implementar lista de supressão e fluxo de descadastro.
+- Consultar e armazenar status de entrega da SMSFire.
+- Criar uma página inicial de indicadores quando houver persistência suficiente para métricas consolidadas.

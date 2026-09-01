@@ -227,13 +227,14 @@ function renderMessages() {
     <tr>
       <td class="muted">${escapeHtml(message.to)}</td>
       <td class="message-preview" title="${escapeHtml(message.body)}">${escapeHtml(message.body)}</td>
-      <td><span class="provider-label">${escapeHtml(providerNames[message.provider] || message.provider || "Twilio")}</span></td>
+      <td><span class="provider-label ${message.provider === "smsfire" ? "smsfire" : "twilio"}">${escapeHtml(providerNames[message.provider] || message.provider || "Twilio")}</span></td>
       <td><span class="status-label ${message.status === "falhou" || message.status === "failed" ? "failed" : ""}">${escapeHtml(formatStatus(message.status))}</span></td>
       <td class="muted">${formatDate(message.createdAt)}</td>
     </tr>
   `).join("");
   messageEmpty.hidden = messages.length > 0;
   document.querySelector("#message-nav-count").textContent = String(messages.length).padStart(2, "0");
+  renderProviderReport();
 }
 
 function formatStatus(status) {
@@ -306,6 +307,49 @@ function chartLabel(date) {
   return new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit" })
     .format(new Date(`${date}T12:00:00Z`))
     .replace(".", "");
+}
+
+function providerReportDays() {
+  const today = new Date();
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(Date.UTC(
+      today.getUTCFullYear(),
+      today.getUTCMonth(),
+      today.getUTCDate() - (6 - index),
+    ));
+    return { date: date.toISOString().slice(0, 10), twilio: 0, smsfire: 0 };
+  });
+}
+
+function renderProviderReport() {
+  const daily = providerReportDays();
+  const byDate = new Map(daily.map((day) => [day.date, day]));
+
+  for (const message of messages) {
+    const date = new Date(message.createdAt);
+    if (Number.isNaN(date.getTime())) continue;
+    const day = byDate.get(date.toISOString().slice(0, 10));
+    if (!day) continue;
+    const provider = message.provider === "smsfire" ? "smsfire" : "twilio";
+    day[provider] += 1;
+  }
+
+  const twilioTotal = daily.reduce((total, day) => total + day.twilio, 0);
+  const smsFireTotal = daily.reduce((total, day) => total + day.smsfire, 0);
+  const maximum = Math.max(1, ...daily.flatMap((day) => [day.twilio, day.smsfire]));
+  document.querySelector("#twilio-sent-count").textContent = twilioTotal;
+  document.querySelector("#smsfire-sent-count").textContent = smsFireTotal;
+  document.querySelector("#provider-total-count").textContent = twilioTotal + smsFireTotal;
+  document.querySelector("#provider-chart").innerHTML = daily.map((day) => `
+    <div class="chart-day">
+      <div class="chart-bars" aria-label="${escapeHtml(chartLabel(day.date))}: ${day.twilio} pela Twilio, ${day.smsfire} pela SMSFire">
+        <span class="chart-value">${day.twilio + day.smsfire || ""}</span>
+        <i class="bar twilio" style="height:${(day.twilio / maximum) * 100}%"></i>
+        <i class="bar smsfire" style="height:${(day.smsfire / maximum) * 100}%"></i>
+      </div>
+      <span class="chart-label">${escapeHtml(chartLabel(day.date))}</span>
+    </div>
+  `).join("");
 }
 
 function renderReport(report) {
