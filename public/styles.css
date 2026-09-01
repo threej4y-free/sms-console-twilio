@@ -1056,26 +1056,118 @@ td.muted { color: var(--muted); font-family: "Cascadia Mono", Consolas, monospac
   .chart-label { font-size: 9px; }
   .bar { width: min(12px, 42%); }
 
-  .pricing-panel { margin-top: 18px; border-radius: 18px; }
-  .pricing-toolbar { min-height: 0; padding: 20px 18px; }
+  .pricing-panel {
+    margin-top: 18px;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .pricing-toolbar {
+    min-height: 0;
+    padding: 20px 18px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--panel);
+    box-shadow: var(--shadow-soft);
+  }
   .pricing-toolbar h2 { font-size: 20px; }
   .volume-field { width: 100%; grid-template-columns: 1fr; gap: 8px; }
   .volume-field input { height: 48px; text-align: left; }
-  .plan-list { padding: 0 18px; }
-  .plan-row { grid-template-columns: 1fr 1fr; gap: 16px 12px; padding: 20px 0; }
-  .plan-name { grid-column: 1 / -1; }
-  .plan-row::before { left: -18px; }
-  .twilio-plan-row::after { inset-inline: -18px; }
-  .plan-rate strong { font-size: 16px; }
-  .plan-total { justify-self: start; text-align: left; }
-  .coupon-box button { min-height: 44px; }
-  .pricing-footer { gap: 16px; padding: 18px; }
+  .plan-list { display: grid; gap: 12px; padding: 14px 0 0; }
+  .plan-row,
+  .plan-row:last-child {
+    min-height: 0;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 12px;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: linear-gradient(145deg, rgba(31, 38, 46, .96), rgba(25, 31, 38, .98));
+    box-shadow: var(--shadow-soft);
+  }
+  .plan-row.best-plan { border-color: rgba(242, 77, 88, .34); }
+  .plan-row::before {
+    top: 16px;
+    bottom: 16px;
+    left: 0;
+    width: 3px;
+  }
+  .plan-name {
+    grid-column: 1 / -1;
+    gap: 11px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .plan-index {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--inset);
+  }
+  .plan-name h3 { font-size: 18px; }
+  .plan-name p { margin-top: 3px; }
+  .best-plan .plan-name::after {
+    margin-left: auto;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: rgba(242, 77, 88, .1);
+    color: #ff7c85;
+    content: "Melhor custo";
+    font-size: 9px;
+    font-weight: 750;
+    white-space: nowrap;
+  }
+  .plan-rate,
+  .plan-detail,
+  .coupon-box { align-content: start; }
+  .plan-rate > span,
+  .plan-total > span,
+  .plan-detail > span,
+  .coupon-box > span {
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: .025em;
+  }
+  .plan-rate strong { font-size: 18px; }
+  .coupon-box button { width: 100%; min-height: 48px; justify-content: center; }
+  .plan-total {
+    display: flex;
+    grid-column: 1 / -1;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    width: 100%;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(11, 15, 19, .28);
+    text-align: left;
+  }
+  .plan-total strong { font-size: 17px; }
+  .twilio-plan-row { background: linear-gradient(145deg, rgba(35, 42, 50, .98), rgba(28, 34, 41, .98)); }
+  .twilio-plan-row::after { display: none; }
+  .pricing-footer {
+    gap: 16px;
+    margin-top: 12px;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: rgba(28, 34, 41, .9);
+    box-shadow: var(--shadow-soft);
+  }
 }
 
 @media (max-width: 380px) {
   .report-summary { grid-template-columns: 1fr; }
   .plan-row { grid-template-columns: 1fr; }
   .plan-name { grid-column: auto; }
+  .plan-total { grid-column: auto; }
 }
 
 @media (hover: none) {
