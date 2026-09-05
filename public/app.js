@@ -23,15 +23,28 @@ const providerSummary = document.querySelector("#provider-summary");
 const planVolume = document.querySelector("#plan-volume");
 const mobileMenuButton = document.querySelector("#mobile-menu");
 const sidebarBackdrop = document.querySelector("#sidebar-backdrop");
+const sidebar = document.querySelector("#mobile-navigation");
+const connectionStatus = document.querySelector("#connection-status");
+const retryProviders = document.querySelector("#retry-providers");
+let sending = false;
 
-const providerNames = { twilio: "Twilio", smsfire: "SMSFire" };
+const providerNames = { twilio: "Twilio", smsfire: "🔥 SMSFire" };
+const SMSFIRE_STATUS_REFRESH_MS = 30_000;
+const terminalMessageStatuses = {
+  twilio: new Set(["delivered", "undelivered", "failed", "canceled", "read"]),
+  smsfire: new Set(["delivered", "undelivered", "failed", "accepted"]),
+};
 let providers = [
-  { id: "twilio", name: "Twilio", configured: true },
-  { id: "smsfire", name: "SMSFire", configured: false },
+  { id: "twilio", name: "Twilio", configured: false },
+  { id: "smsfire", name: "🔥 SMSFire", configured: false },
 ];
 
 let lists = readStorage(STORAGE_LISTS);
 let messages = readStorage(STORAGE_MESSAGES);
+let statusRefreshInFlight = false;
+let lastSmsFireStatusRefreshAt = 0;
+let smsFireStatusCursor = 0;
+let latestTwilioReport = null;
 
 function readStorage(key) {
   try {
@@ -78,17 +91,27 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
-function navigate(view) {
+function navigate(view, updateHash = true) {
   document.querySelectorAll("[data-view]").forEach((section) => {
     section.classList.toggle("active", section.dataset.view === view);
   });
   document.querySelectorAll(".nav-item").forEach((item) => {
     item.classList.toggle("active", item.dataset.nav === view);
+    if (item.dataset.nav === view) item.setAttribute("aria-current", "page");
+    else item.removeAttribute("aria-current");
   });
   setMobileMenu(false);
+  closeListMenu();
   const hashes = { compose: "envio", recipients: "destinatarios", messages: "relatorio", plans: "planos" };
-  window.location.hash = hashes[view] || "envio";
-  if (view === "messages") loadReport();
+  const hash = `#${hashes[view] || "envio"}`;
+  if (updateHash && window.location.hash !== hash) history.pushState(null, "", hash);
+  const heading = document.querySelector(`[data-view="${view}"] h1`);
+  heading.tabIndex = -1;
+  heading.focus({ preventScroll: true });
+  if (view === "messages") {
+    loadReport();
+    syncMessageStatuses();
+  }
 }
 
 document.querySelectorAll("[data-nav]").forEach((control) => {
@@ -103,28 +126,56 @@ function setMobileMenu(open) {
   mobileMenuButton.setAttribute("aria-expanded", String(open));
   mobileMenuButton.setAttribute("aria-label", open ? "Fechar menu" : "Abrir menu");
   sidebarBackdrop.tabIndex = open ? 0 : -1;
+  sidebar.inert = window.innerWidth <= 900 && !open;
+  document.querySelectorAll(".main > .view").forEach((view) => { view.inert = open; });
+  if (open) sidebar.querySelector(".nav-item.active").focus();
 }
 
 mobileMenuButton.addEventListener("click", () => {
   setMobileMenu(!document.body.classList.contains("menu-open"));
 });
 
-sidebarBackdrop.addEventListener("click", () => setMobileMenu(false));
+sidebarBackdrop.addEventListener("click", () => {
+  setMobileMenu(false);
+  mobileMenuButton.focus();
+});
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && document.body.classList.contains("menu-open")) {
     setMobileMenu(false);
     mobileMenuButton.focus();
   }
+  if (event.key === "Tab" && document.body.classList.contains("menu-open")) {
+    const controls = [...sidebar.querySelectorAll("a, button:not(:disabled):not([hidden])"), sidebarBackdrop, mobileMenuButton];
+    const index = controls.indexOf(document.activeElement);
+    event.preventDefault();
+    controls[(index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length].focus();
+  }
 });
 
 window.addEventListener("resize", () => {
-  if (window.innerWidth > 900) setMobileMenu(false);
+  setMobileMenu(window.innerWidth <= 900 && document.body.classList.contains("menu-open"));
 });
 
-messageInput.addEventListener("input", () => {
+function updateComposer() {
+  const overLimit = messageInput.value.length > messageInput.maxLength;
   count.textContent = `${messageInput.value.length} / ${messageInput.maxLength}`;
-});
+  count.classList.toggle("over-limit", overLimit);
+  messageInput.setAttribute("aria-invalid", String(overLimit));
+  document.querySelector("#message-hint").textContent = overLimit
+    ? `Este provedor aceita até ${messageInput.maxLength} caracteres. Reduza a mensagem para enviar.`
+    : "Revise o texto e os destinatários antes de enviar.";
+  const preview = document.querySelector("#message-live-preview");
+  preview.textContent = messageInput.value.trim() || "Sua mensagem aparece aqui enquanto você escreve.";
+  preview.classList.toggle("is-empty", !messageInput.value.trim());
+  const list = lists.find((item) => item.id === listSelect.value);
+  document.querySelector("#send-summary").textContent = list
+    ? `${list.numbers.length} ${list.numbers.length === 1 ? "destinatário selecionado" : "destinatários selecionados"}`
+    : "Selecione uma lista para começar.";
+  submitButton.disabled = sending || !providers.some((item) => item.id === providerInput.value && item.configured);
+}
+
+messageInput.addEventListener("input", updateComposer);
 
 function selectProvider(providerId) {
   const provider = providers.find((item) => item.id === providerId);
@@ -139,7 +190,7 @@ function selectProvider(providerId) {
 
   const isSmsFire = providerId === "smsfire";
   messageInput.maxLength = isSmsFire ? 765 : 1600;
-  document.querySelector("#selected-provider-name").textContent = provider.name;
+  document.querySelector("#selected-provider-name").textContent = providerNames[provider.id] || provider.name;
   document.querySelector("#selected-provider-status").textContent = "Configurado no servidor";
   document.querySelector("#selected-provider-plan").textContent = isSmsFire ? "A partir de R$ 0,10/SMS" : "Conta Twilio";
   messageInput.dispatchEvent(new Event("input"));
@@ -151,6 +202,9 @@ providerOptions.addEventListener("click", (event) => {
 });
 
 async function loadProviders() {
+  retryProviders.hidden = true;
+  connectionStatus.textContent = "Verificando conexão";
+  connectionStatus.closest(".sidebar-meta").dataset.state = "loading";
   try {
     const response = await fetch("/ui/providers");
     const payload = await response.json();
@@ -165,14 +219,37 @@ async function loadProviders() {
     });
 
     const configuredCount = providers.filter((provider) => provider.configured).length;
+    connectionStatus.textContent = "API online";
+    connectionStatus.closest(".sidebar-meta").dataset.state = "online";
     providerSummary.textContent = `${configuredCount} ${configuredCount === 1 ? "provedor configurado" : "provedores configurados"}`;
 
     const current = providers.find((provider) => provider.id === providerInput.value && provider.configured);
     selectProvider(current?.id || providers.find((provider) => provider.configured)?.id || "twilio");
+    if (!configuredCount) resetProviderSelection("Nenhum provedor disponível", "Configure um provedor para enviar mensagens.");
   } catch {
+    providers = providers.map((provider) => ({ ...provider, configured: false }));
+    resetProviderSelection("Conexão indisponível", "Tente conectar novamente para enviar.");
+    connectionStatus.textContent = "API indisponível";
+    connectionStatus.closest(".sidebar-meta").dataset.state = "offline";
+    retryProviders.hidden = false;
     providerSummary.textContent = "Status indisponível";
   }
+  updateComposer();
 }
+
+function resetProviderSelection(title, description) {
+  providerOptions.querySelectorAll("[data-provider]").forEach((option) => {
+    option.disabled = true;
+    option.classList.remove("active");
+    option.setAttribute("aria-pressed", "false");
+    option.querySelector(".provider-state").textContent = "Indisponível";
+  });
+  document.querySelector("#selected-provider-name").textContent = title;
+  document.querySelector("#selected-provider-status").textContent = description;
+  document.querySelector("#selected-provider-plan").textContent = "—";
+}
+
+retryProviders.addEventListener("click", loadProviders);
 
 listSelect.addEventListener("change", () => {
   const list = lists.find((item) => item.id === listSelect.value);
@@ -180,12 +257,41 @@ listSelect.addEventListener("change", () => {
   selectedListCount.textContent = list
     ? `${list.numbers.length} ${list.numbers.length === 1 ? "destinatário" : "destinatários"}`
     : "Nenhuma lista selecionada";
+  updateComposer();
 });
+
+function closeListMenu(restoreFocus = false) {
+  listMenu.hidden = true;
+  listTrigger.setAttribute("aria-expanded", "false");
+  if (restoreFocus) listTrigger.focus();
+}
 
 listTrigger.addEventListener("click", () => {
   const open = listMenu.hidden;
   listMenu.hidden = !open;
   listTrigger.setAttribute("aria-expanded", String(open));
+  if (open) listMenu.querySelector("button")?.focus();
+});
+
+document.querySelector(".list-picker").addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeListMenu(true);
+    event.stopPropagation();
+  }
+  if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+  event.preventDefault();
+  listMenu.hidden = false;
+  listTrigger.setAttribute("aria-expanded", "true");
+  const options = [...listMenu.querySelectorAll("button")];
+  if (!options.length) return;
+  const current = options.indexOf(document.activeElement);
+  const next = current === -1 ? (event.key === "ArrowDown" ? 0 : options.length - 1)
+    : (current + (event.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
+  options[next].focus();
+});
+
+document.querySelector(".list-picker").addEventListener("focusout", (event) => {
+  if (!event.currentTarget.contains(event.relatedTarget)) closeListMenu();
 });
 
 listMenu.addEventListener("click", (event) => {
@@ -193,15 +299,13 @@ listMenu.addEventListener("click", (event) => {
   if (!option) return;
   listSelect.value = option.dataset.listOption;
   listSelect.dispatchEvent(new Event("change"));
-  listMenu.hidden = true;
-  listTrigger.setAttribute("aria-expanded", "false");
+  closeListMenu(true);
   renderLists();
 });
 
 document.addEventListener("click", (event) => {
   if (event.target.closest(".list-picker")) return;
-  listMenu.hidden = true;
-  listTrigger.setAttribute("aria-expanded", "false");
+  closeListMenu();
 });
 
 function showResult(type, title, message) {
@@ -234,7 +338,7 @@ function renderLists() {
   const selected = listSelect.value;
   listMenu.innerHTML = lists.length > 0
     ? lists.map((list) => `<button class="list-picker-option ${selected === list.id ? "active" : ""}" type="button" role="menuitem" data-list-option="${list.id}"><span>${escapeHtml(list.name)}</span><small>${list.numbers.length} ${list.numbers.length === 1 ? "número" : "números"}</small></button>`).join("")
-    : `<div class="list-picker-empty">Nenhuma lista cadastrada</div>`;
+    : `<button class="list-picker-option" type="button" role="menuitem" data-create-list>Criar minha primeira lista →</button>`;
   if (!lists.some((list) => list.id === selected)) listSelect.value = "";
 
   listEmpty.hidden = lists.length > 0;
@@ -255,6 +359,7 @@ function renderMessages() {
   messageEmpty.hidden = messages.length > 0;
   document.querySelector("#message-nav-count").textContent = String(messages.length).padStart(2, "0");
   renderProviderReport();
+  if (latestTwilioReport) renderReport(latestTwilioReport);
 }
 
 function formatStatus(status) {
@@ -271,6 +376,80 @@ function formatStatus(status) {
   return labels[status] || status;
 }
 
+async function syncMessageStatuses() {
+  if (statusRefreshInFlight) return;
+
+  const smsFirePending = messages.filter((message) => (
+    message.provider === "smsfire"
+    && /^[a-zA-Z0-9-]{1,100}$/.test(message.id)
+    && !terminalMessageStatuses.smsfire.has(message.status)
+  ));
+  const shouldRefreshSmsFire = smsFirePending.length > 0
+    && Date.now() - lastSmsFireStatusRefreshAt >= SMSFIRE_STATUS_REFRESH_MS;
+  const smsFireMessage = shouldRefreshSmsFire
+    ? smsFirePending[smsFireStatusCursor % smsFirePending.length]
+    : undefined;
+
+  const batches = [
+    {
+      provider: "twilio",
+      messages: messages.filter((message) => (
+        message.provider !== "smsfire"
+        && /^SM[a-fA-F0-9]{32}$/.test(message.id)
+        && !terminalMessageStatuses.twilio.has(message.status)
+      )).slice(0, 100),
+    },
+    ...(smsFireMessage ? [{
+      provider: "smsfire",
+      messages: [smsFireMessage],
+    }] : []),
+  ].filter((batch) => batch.messages.length > 0);
+  if (batches.length === 0) return;
+
+  if (smsFireMessage) {
+    lastSmsFireStatusRefreshAt = Date.now();
+    smsFireStatusCursor += 1;
+  }
+
+  statusRefreshInFlight = true;
+  try {
+    const results = await Promise.all(batches.map(async (batch) => {
+      try {
+        const response = await fetch("/ui/message-statuses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            provider: batch.provider,
+            sids: batch.messages.map((message) => message.id),
+          }),
+        });
+        const payload = await response.json();
+        return response.ok && Array.isArray(payload.messages) ? payload.messages : [];
+      } catch {
+        return [];
+      }
+    }));
+
+    const statuses = new Map(results.flat().map((message) => [message.sid, message.status]));
+    let changed = false;
+    messages = messages.map((message) => {
+      const status = statuses.get(message.id);
+      if (!status || status === message.status) return message;
+      changed = true;
+      return { ...message, status };
+    });
+
+    if (changed) {
+      writeStorage(STORAGE_MESSAGES, messages);
+      renderMessages();
+    }
+  } catch {
+    // Mantem o ultimo status conhecido e tenta novamente no proximo ciclo.
+  } finally {
+    statusRefreshInFlight = false;
+  }
+}
+
 listForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const nameInput = document.querySelector("#list-name");
@@ -279,9 +458,10 @@ listForm.addEventListener("submit", (event) => {
   const numbers = parsePhones(numbersInput.value);
   const invalid = numbers.find((phone) => !/^\+[1-9]\d{7,14}$/.test(phone));
 
-  if (!name || numbers.length === 0 || invalid) {
+  if (!name || numbers.length === 0 || invalid || numbers.length > 100) {
     numbersInput.setCustomValidity(
-      invalid
+      numbers.length > 100 ? "Cada lista pode ter no máximo 100 números."
+        : invalid
         ? `${invalid} não está no formato internacional.`
         : "Adicione pelo menos um número no formato internacional.",
     );
@@ -362,7 +542,7 @@ function renderProviderReport() {
   document.querySelector("#provider-total-count").textContent = twilioTotal + smsFireTotal;
   document.querySelector("#provider-chart").innerHTML = daily.map((day) => `
     <div class="chart-day">
-      <div class="chart-bars" aria-label="${escapeHtml(chartLabel(day.date))}: ${day.twilio} pela Twilio, ${day.smsfire} pela SMSFire">
+      <div class="chart-bars" aria-label="${escapeHtml(chartLabel(day.date))}: ${day.twilio} pela Twilio, ${day.smsfire} pela 🔥 SMSFire">
         <span class="chart-value">${day.twilio + day.smsfire || ""}</span>
         <i class="bar twilio" style="height:${(day.twilio / maximum) * 100}%"></i>
         <i class="bar smsfire" style="height:${(day.smsfire / maximum) * 100}%"></i>
@@ -373,12 +553,46 @@ function renderProviderReport() {
 }
 
 function renderReport(report) {
-  document.querySelector("#sent-count").textContent = report.sent;
-  document.querySelector("#delivered-count").textContent = report.delivered;
-  document.querySelector("#delivery-rate").textContent = `${report.deliveryRate}%`;
+  const daily = report.daily.map((day) => ({ ...day }));
+  const byDate = new Map(daily.map((day) => [day.date, day]));
+  let smsFireSent = 0;
+  let smsFireDelivered = 0;
+  let smsFireUndelivered = 0;
+  let smsFireFailed = 0;
+  let smsFirePending = 0;
 
-  const maximum = Math.max(1, ...report.daily.flatMap((day) => [day.sent, day.delivered]));
-  document.querySelector("#delivery-chart").innerHTML = report.daily.map((day) => `
+  for (const message of messages.filter((item) => item.provider === "smsfire")) {
+    const date = new Date(message.createdAt);
+    if (Number.isNaN(date.getTime())) continue;
+    const day = byDate.get(date.toISOString().slice(0, 10));
+    if (!day) continue;
+
+    day.sent += 1;
+    smsFireSent += 1;
+    if (message.status === "delivered") {
+      day.delivered += 1;
+      smsFireDelivered += 1;
+    } else if (message.status === "undelivered") {
+      smsFireUndelivered += 1;
+    } else if (message.status === "failed") {
+      smsFireFailed += 1;
+    } else {
+      smsFirePending += 1;
+    }
+  }
+
+  const sent = report.sent + smsFireSent;
+  const delivered = report.delivered + smsFireDelivered;
+  const undelivered = report.undelivered + smsFireUndelivered;
+  const failed = report.failed + smsFireFailed;
+  const pending = report.pending + smsFirePending;
+  const deliveryRate = sent > 0 ? Math.round((delivered / sent) * 1000) / 10 : 0;
+  document.querySelector("#sent-count").textContent = sent;
+  document.querySelector("#delivered-count").textContent = delivered;
+  document.querySelector("#delivery-rate").textContent = `${deliveryRate}%`;
+
+  const maximum = Math.max(1, ...daily.flatMap((day) => [day.sent, day.delivered]));
+  document.querySelector("#delivery-chart").innerHTML = daily.map((day) => `
     <div class="chart-day">
       <div class="chart-bars" aria-label="${escapeHtml(chartLabel(day.date))}: ${day.sent} enviadas, ${day.delivered} entregues">
         <span class="chart-value">${day.sent || ""}</span>
@@ -390,7 +604,7 @@ function renderReport(report) {
   `).join("");
 
   document.querySelector("#report-note").textContent =
-    `${report.undelivered} não entregues · ${report.failed} falharam · ${report.pending} em processamento`;
+    `${undelivered} não entregues · ${failed} falharam · ${pending} em processamento`;
 }
 
 async function loadReport() {
@@ -398,7 +612,8 @@ async function loadReport() {
     const response = await fetch("/ui/report");
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error);
-    renderReport(payload.report);
+    latestTwilioReport = payload.report;
+    renderReport(latestTwilioReport);
   } catch {
     document.querySelector("#report-note").textContent = "Não foi possível consultar o relatório agora.";
   }
@@ -406,6 +621,7 @@ async function loadReport() {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (sending) return;
   result.hidden = true;
   const list = lists.find((item) => item.id === listSelect.value);
   const body = messageInput.value.trim();
@@ -413,11 +629,24 @@ form.addEventListener("submit", async (event) => {
 
   if (!list || !body) {
     showResult("error", "Revise os campos", "Selecione uma lista e escreva a mensagem.");
+    (!list ? listTrigger : messageInput).focus();
     return;
   }
 
+  if (!providers.some((item) => item.id === provider && item.configured)) {
+    showResult("error", "Provedor indisponível", "Verifique a conexão e selecione um provedor disponível.");
+    return;
+  }
+  if (body.length > messageInput.maxLength || list.numbers.length > 100) {
+    showResult("error", "Revise os limites", `Use até 100 destinatários e ${messageInput.maxLength} caracteres por mensagem.`);
+    messageInput.focus();
+    return;
+  }
+
+  sending = true;
+  form.setAttribute("aria-busy", "true");
   submitButton.disabled = true;
-  submitButton.querySelector("span").textContent = `Disparando 0/${list.numbers.length}`;
+  submitButton.querySelector("span").textContent = "Enviando mensagens…";
 
   try {
     const response = await fetch("/ui/broadcasts", {
@@ -461,7 +690,9 @@ form.addEventListener("submit", async (event) => {
   } catch {
     showResult("error", "Servidor indisponível", "Confirme se a aplicação está em execução e tente novamente.");
   } finally {
-    submitButton.disabled = false;
+    sending = false;
+    form.setAttribute("aria-busy", "false");
+    updateComposer();
     submitButton.querySelector("span").textContent = "Disparar mensagens";
   }
 });
@@ -500,7 +731,7 @@ function updatePlanEstimate() {
   }
 
   document.querySelector("#plan-recommendation").innerHTML =
-    `<strong>Para ${formatNumber(volume)} SMS:</strong> o plano ${best.name} tem o menor custo estimado na SMSFire.`;
+    `<strong>Para ${formatNumber(volume)} SMS:</strong> o plano ${best.name} tem o menor custo estimado na 🔥 SMSFire.`;
   document.querySelector("#twilio-volume-total").textContent = formatUsd(volume * 0.0599);
 }
 
@@ -516,9 +747,22 @@ document.querySelector("#copy-coupon").addEventListener("click", async (event) =
   }
 });
 
-const initialHash = window.location.hash.replace("#", "");
-navigate(initialHash === "destinatarios" ? "recipients" : initialHash === "relatorio" ? "messages" : initialHash === "planos" ? "plans" : "compose");
+function navigateFromHash() {
+  const views = { destinatarios: "recipients", relatorio: "messages", planos: "plans" };
+  navigate(views[window.location.hash.slice(1)] || "compose", false);
+}
+window.addEventListener("hashchange", navigateFromHash);
+listMenu.addEventListener("click", (event) => {
+  if (event.target.closest("[data-create-list]")) {
+    navigate("recipients");
+    document.querySelector("#list-name").focus();
+  }
+});
+navigateFromHash();
 renderLists();
 renderMessages();
 updatePlanEstimate();
 loadProviders();
+window.setInterval(() => {
+  if (document.querySelector('[data-view="messages"].active')) syncMessageStatuses();
+}, 5_000);

@@ -248,6 +248,7 @@ Resposta:
 | `POST` | `/ui/broadcasts` | Envio para até 100 destinatários | Apenas local |
 | `GET` | `/ui/providers` | Provedores configurados, sem expor credenciais | Apenas local |
 | `GET` | `/ui/report` | Relatório dos últimos sete dias | Apenas local |
+| `POST` | `/ui/message-statuses` | Consulta status atual na Twilio ou SMSFire | Apenas local |
 | `POST` | `/webhooks/twilio/message-status` | Atualização de status | Assinatura Twilio |
 
 Referências da integração: [autenticação da API v3](https://docs.smsfire.com.br/apis-v3/autenticacao) e [envio de mensagens](https://docs.smsfire.com.br/apis-v3/sms/api/enviar-mensagem).
@@ -328,7 +329,7 @@ tests/
 ## Limitações atuais
 
 - Listas e histórico são locais ao navegador e não são sincronizados entre dispositivos.
-- O histórico visual registra o status retornado no momento do envio; o gráfico usa os status atuais consultados na Twilio.
+- O histórico visual atualiza os envios pendentes dos dois provedores; para respeitar o limite da SMSFire, consulta uma mensagem a cada 30 segundos.
 - O relatório remoto atual é exclusivo da Twilio; os envios SMSFire aparecem no histórico local.
 - A Twilio é processada sequencialmente; a SMSFire usa o endpoint em massa. Ambos aceitam até 100 destinatários por solicitação nesta interface.
 - A SMSFire aceita até 765 caracteres por mensagem na API v3; a Twilio aceita até 1.600 nesta aplicação.

@@ -18,6 +18,7 @@ function buildApp(
   smsFireService?: SmsService,
   options: BuildAppOptions = {},
 ) {
+  const getMessageStatuses = vi.fn<NonNullable<SmsService["getMessageStatuses"]>>();
   send.mockResolvedValue({
     sid: "SM00000000000000000000000000000000",
     to: "+5511999999999",
@@ -35,13 +36,17 @@ function buildApp(
     deliveryRate: 80,
     daily: [{ date: "2026-09-01", sent: 10, delivered: 8 }],
   });
+  getMessageStatuses.mockResolvedValue([
+    { sid: "SM00000000000000000000000000000000", status: "delivered" },
+  ]);
 
   return {
     send,
     getReport,
+    getMessageStatuses,
     app: createApp({
       smsProviders: {
-        twilio: { send, getReport },
+        twilio: { send, getReport, getMessageStatuses },
         ...(smsFireService ? { smsfire: smsFireService } : {}),
       },
       apiKey,
@@ -280,6 +285,61 @@ describe("API de SMS", () => {
     expect(getReport).toHaveBeenCalledOnce();
   });
 
+  it("consulta os status atuais das mensagens da Twilio", async () => {
+    const { app, getMessageStatuses } = buildApp();
+    const sids = ["SM00000000000000000000000000000000"];
+    const response = await request(app)
+      .post("/ui/message-statuses")
+      .send({ sids });
+
+    expect(response.status).toBe(200);
+    expect(response.body.messages).toEqual([{ sid: sids[0], status: "delivered" }]);
+    expect(getMessageStatuses).toHaveBeenCalledWith(sids);
+  });
+
+  it("rejeita SIDs invalidos na consulta de status", async () => {
+    const { app, getMessageStatuses } = buildApp();
+    const response = await request(app)
+      .post("/ui/message-statuses")
+      .send({ sids: ["message-invalida"] });
+
+    expect(response.status).toBe(400);
+    expect(getMessageStatuses).not.toHaveBeenCalled();
+  });
+
+  it("consulta uma mensagem pendente da SMSFire", async () => {
+    const getMessageStatuses = vi.fn<NonNullable<SmsService["getMessageStatuses"]>>()
+      .mockResolvedValue([{ sid: "smsfire-message-1", status: "delivered" }]);
+    const { app } = buildApp(undefined, undefined, {
+      send: vi.fn<SmsService["send"]>(),
+      getMessageStatuses,
+    });
+    const response = await request(app)
+      .post("/ui/message-statuses")
+      .send({ provider: "smsfire", sids: ["smsfire-message-1"] });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      provider: "smsfire",
+      messages: [{ sid: "smsfire-message-1", status: "delivered" }],
+    });
+    expect(getMessageStatuses).toHaveBeenCalledWith(["smsfire-message-1"]);
+  });
+
+  it("limita a consulta da SMSFire a uma mensagem por ciclo", async () => {
+    const getMessageStatuses = vi.fn<NonNullable<SmsService["getMessageStatuses"]>>();
+    const { app } = buildApp(undefined, undefined, {
+      send: vi.fn<SmsService["send"]>(),
+      getMessageStatuses,
+    });
+    const response = await request(app)
+      .post("/ui/message-statuses")
+      .send({ provider: "smsfire", sids: ["message-1", "message-2"] });
+
+    expect(response.status).toBe(400);
+    expect(getMessageStatuses).not.toHaveBeenCalled();
+  });
+
   it("aceita callback de status quando a validacao esta desativada em teste", async () => {
     const { app } = buildApp();
     const response = await request(app)
@@ -363,5 +423,31 @@ describe("Cliente SMSFire", () => {
 
     await expect(service.sendBulk([{ to: "+5511999999999", body: "Mensagem de teste" }]))
       .rejects.toMatchObject({ provider: "smsfire", status: 504 });
+  });
+
+  it("consulta e normaliza o status de entrega da SMSFire", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      id: "019adf54-2b62-747d-a9e4-ae3a8239fb27",
+      statusCode: 2,
+      statusName: "DELIVRD",
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const service = new SmsFireSmsService("usuario", "token", "https://api-v3.smsfire.com.br");
+
+    const statuses = await service.getMessageStatuses?.([
+      "019adf54-2b62-747d-a9e4-ae3a8239fb27",
+    ]);
+
+    expect(statuses).toEqual([{
+      sid: "019adf54-2b62-747d-a9e4-ae3a8239fb27",
+      status: "delivered",
+    }]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api-v3.smsfire.com.br/sms/status/message/019adf54-2b62-747d-a9e4-ae3a8239fb27",
+      {
+        headers: { Api_Token: "token", Username: "usuario" },
+        signal: expect.any(AbortSignal),
+      },
+    );
   });
 });

@@ -38,6 +38,37 @@ const sendBroadcastSchema = z.object({
   provider: providerSchema,
 }).strict();
 
+const messageStatusesSchema = z.object({
+  provider: providerSchema,
+  sids: z
+    .array(z.string().trim().min(1).max(100))
+    .min(1, "Informe pelo menos uma mensagem")
+    .max(100, "Consulte no maximo 100 mensagens por vez"),
+}).strict().superRefine((value, context) => {
+  if (value.provider === "twilio") {
+    value.sids.forEach((sid, index) => {
+      if (!/^SM[a-fA-F0-9]{32}$/.test(sid)) {
+        context.addIssue({
+          code: "custom",
+          path: ["sids", index],
+          message: "SID de mensagem Twilio invalido",
+        });
+      }
+    });
+  }
+
+  if (value.provider === "smsfire" && value.sids.length > 1) {
+    context.addIssue({
+      code: "too_big",
+      maximum: 1,
+      origin: "array",
+      inclusive: true,
+      path: ["sids"],
+      message: "Consulte uma mensagem SMSFire por ciclo",
+    });
+  }
+});
+
 function providerService(
   dependencies: AppDependencies,
   provider: SmsProviderId,
@@ -285,6 +316,37 @@ export function createApp(dependencies: AppDependencies) {
           throw new SmsProviderError("twilio", 503, "Relatorio da Twilio indisponivel");
         }
         response.json({ provider: "twilio", report: await reportService.getReport() });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  app.post(
+    "/ui/message-statuses",
+    express.json({ limit: "10kb" }),
+    localOnlyMiddleware(dependencies.enableLocalUi),
+    async (request, response, next) => {
+      try {
+        const parsed = messageStatusesSchema.safeParse(request.body);
+        if (!parsed.success) {
+          response.status(400).json({
+            error: "Dados invalidos",
+            details: parsed.error.flatten().fieldErrors,
+          });
+          return;
+        }
+
+        const service = providerService(dependencies, parsed.data.provider);
+        if (!service.getMessageStatuses) {
+          throw new SmsProviderError(parsed.data.provider, 503, "Consulta de status indisponivel");
+        }
+
+        const sids = [...new Set(parsed.data.sids)];
+        response.json({
+          provider: parsed.data.provider,
+          messages: await service.getMessageStatuses(sids),
+        });
       } catch (error) {
         next(error);
       }

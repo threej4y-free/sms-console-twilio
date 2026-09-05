@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#11151a" />
+    <meta name="theme-color" content="#141c20" />
     <meta name="description" content="Painel local para disparo de SMS por múltiplos provedores" />
     <title>SMS Console</title>
     <link rel="stylesheet" href="/styles.css" />
@@ -38,9 +38,10 @@
           </button>
         </nav>
 
-        <div class="sidebar-meta">
-          <span><i></i> API online</span>
+        <div class="sidebar-meta" data-state="loading" role="status">
+          <span><i></i><b id="connection-status">Verificando conexão</b></span>
           <small id="provider-summary">Verificando provedores...</small>
+          <button id="retry-providers" class="context-link" type="button" hidden>Tentar novamente</button>
         </div>
       </aside>
 
@@ -58,9 +59,9 @@
           <header class="page-header">
             <div>
               <span class="kicker">Envio</span>
-              <h1>Disparo de Mensagens</h1>
+              <h1>Nova mensagem</h1>
             </div>
-            <p>Escolha o provedor e dispare uma mensagem para a lista selecionada.</p>
+            <p>Escolha quem vai receber, escreva sua mensagem e acompanhe cada envio.</p>
           </header>
 
           <div class="compose-grid">
@@ -68,12 +69,12 @@
               <fieldset class="provider-field">
                 <legend>Provedor de envio</legend>
                 <div id="provider-options" class="provider-options">
-                  <button class="provider-option active" type="button" data-provider="twilio" aria-pressed="true">
+                  <button class="provider-option" type="button" data-provider="twilio" aria-pressed="false" disabled>
                     <span><strong>Twilio</strong><small>Conta atual</small></span>
-                    <i class="provider-state">Disponível</i>
+                    <i class="provider-state">Verificando</i>
                   </button>
-                  <button class="provider-option" type="button" data-provider="smsfire" aria-pressed="false">
-                    <span><strong>SMSFire</strong><small>API v3</small></span>
+                  <button class="provider-option" type="button" data-provider="smsfire" aria-pressed="false" disabled>
+                    <span><strong>🔥 SMSFire</strong><small>API v3</small></span>
                     <i class="provider-state">Verificando</i>
                   </button>
                 </div>
@@ -83,10 +84,10 @@
               <div class="rule"></div>
 
               <div class="field">
-                <label for="recipient-list">Lista de destinatários</label>
+                <label id="recipient-list-label" for="recipient-list-trigger">Lista de destinatários</label>
                 <div class="list-picker">
-                  <button id="recipient-list-trigger" class="list-picker-trigger" type="button" aria-haspopup="true" aria-expanded="false">
-                    <span>Selecione uma lista</span>
+                  <button id="recipient-list-trigger" class="list-picker-trigger" type="button" aria-labelledby="recipient-list-label recipient-list-value" aria-controls="recipient-list-menu" aria-haspopup="menu" aria-expanded="false">
+                    <span id="recipient-list-value">Selecione uma lista</span>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5" /></svg>
                   </button>
                   <div id="recipient-list-menu" class="list-picker-menu" role="menu" hidden></div>
@@ -105,7 +106,8 @@
                   <label for="message">Mensagem</label>
                   <span id="character-count">0 / 1600</span>
                 </div>
-                <textarea id="message" name="body" rows="8" maxlength="1600" placeholder="Escreva a mensagem..." required></textarea>
+                <textarea id="message" name="body" rows="7" maxlength="1600" placeholder="Olá! Escreva aqui a mensagem que seus destinatários vão receber." aria-describedby="message-hint character-count" required></textarea>
+                <p id="message-hint" class="message-hint">Revise o texto e os destinatários antes de enviar.</p>
               </div>
 
               <div id="result" class="result" role="status" aria-live="polite" hidden>
@@ -114,8 +116,8 @@
               </div>
 
               <div class="form-footer">
-                <p>Credenciais protegidas no servidor.</p>
-                <button class="primary-button" id="submit-button" type="submit">
+                <p id="send-summary">Selecione uma lista para começar.</p>
+                <button class="primary-button" id="submit-button" type="submit" disabled>
                   <span>Disparar mensagens</span>
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5" /></svg>
                 </button>
@@ -123,14 +125,20 @@
             </form>
 
             <aside class="context-panel">
+              <div class="context-block preview-block">
+                <span class="context-label">Prévia da mensagem</span>
+                <div class="preview-header"><span class="preview-avatar" aria-hidden="true">S</span><div><strong>SMS</strong><small>Mensagem de texto</small></div></div>
+                <p id="message-live-preview" class="message-bubble is-empty">Sua mensagem aparece aqui enquanto você escreve.</p>
+                <small class="preview-caption">Prévia ilustrativa da mensagem.</small>
+              </div>
               <div class="context-block">
                 <span class="context-label">Provedor selecionado</span>
-                <strong id="selected-provider-name">Twilio</strong>
-                <small id="selected-provider-status">Configurado no servidor</small>
+                <strong id="selected-provider-name">Aguardando conexão</strong>
+                <small id="selected-provider-status">Verificando disponibilidade</small>
               </div>
               <div class="context-block">
                 <span class="context-label">Condição</span>
-                <strong id="selected-provider-plan">Conta Twilio</strong>
+                <strong id="selected-provider-plan">—</strong>
                 <small><button class="context-link" type="button" data-nav="plans">Comparar planos</button></small>
               </div>
               <div class="context-block note-block">
@@ -176,7 +184,8 @@
               <tbody id="recipient-table"></tbody>
             </table>
             <div id="recipient-empty" class="empty-state">
-              <p>Nenhuma lista cadastrada.</p>
+              <strong>Sua primeira lista começa aqui</strong>
+              <p>Preencha o nome e os números acima para organizar seus destinatários.</p>
             </div>
           </div>
         </section>
@@ -187,7 +196,7 @@
               <span class="kicker">Desempenho</span>
               <h1>Relatório</h1>
             </div>
-            <p>Envios registrados neste navegador e entregas consultadas diretamente na Twilio.</p>
+            <p>Envios e entregas da Twilio e da 🔥 SMSFire em uma visão consolidada.</p>
           </header>
 
           <div class="table-wrap messages-table">
@@ -196,7 +205,9 @@
               <tbody id="message-table"></tbody>
             </table>
             <div id="message-empty" class="empty-state">
-              <p>Nenhuma mensagem enviada nesta sessão.</p>
+              <strong>Seus envios, em um só lugar</strong>
+              <p>As mensagens enviadas por este navegador aparecerão aqui.</p>
+              <button class="inline-action" type="button" data-nav="compose">Criar uma mensagem →</button>
             </div>
           </div>
 
@@ -208,18 +219,18 @@
               </div>
               <div class="report-summary" aria-label="resumo por provedor">
                 <span><i class="twilio-dot"></i><strong id="twilio-sent-count">0</strong> Twilio</span>
-                <span><i class="smsfire-dot"></i><strong id="smsfire-sent-count">0</strong> SMSFire</span>
+                <span><i class="smsfire-dot"></i><strong id="smsfire-sent-count">0</strong> 🔥 SMSFire</span>
                 <span><strong id="provider-total-count">0</strong> no total</span>
               </div>
             </header>
-            <div id="provider-chart" class="delivery-chart provider-chart" role="img" aria-label="gráfico de disparos pela Twilio e SMSFire nos últimos sete dias"></div>
+            <div id="provider-chart" class="delivery-chart provider-chart" role="img" aria-label="gráfico de disparos pela Twilio e 🔥 SMSFire nos últimos sete dias"></div>
             <p class="report-note">Contagem baseada nos disparos registrados neste navegador.</p>
           </section>
 
           <section class="report-section" aria-labelledby="report-title">
             <header class="report-heading">
               <div>
-                <span class="kicker">Status Twilio · Últimos 7 dias</span>
+                <span class="kicker">Status Twilio + 🔥 SMSFire · Últimos 7 dias</span>
                 <h2 id="report-title">Envios e entregas</h2>
               </div>
               <div class="report-summary" aria-label="resumo de entregas">
@@ -229,8 +240,9 @@
               </div>
             </header>
             <div id="delivery-chart" class="delivery-chart" role="img" aria-label="gráfico de mensagens enviadas e entregues nos últimos sete dias"></div>
-            <p id="report-note" class="report-note">Carregando dados da Twilio...</p>
+            <p id="report-note" class="report-note">Carregando dados dos provedores...</p>
           </section>
+
         </section>
 
         <section class="view" data-view="plans">
@@ -239,7 +251,7 @@
               <span class="kicker">Comparativo</span>
               <h1>Planos</h1>
             </div>
-            <p>Compare os planos da SMSFire e estime o custo por uso da Twilio.</p>
+            <p>Compare os planos da 🔥 SMSFire e estime o custo por uso da Twilio.</p>
           </header>
 
           <section class="pricing-panel" aria-labelledby="pricing-title">
@@ -307,8 +319,8 @@
             </div>
 
             <footer class="pricing-footer">
-              <p id="plan-recommendation"><strong>Para 200.000 SMS:</strong> o plano Growth tem o menor custo estimado na SMSFire.</p>
-              <small>SMSFire: mensalidade + volume × preço por SMS. Twilio: valor em dólar por segmento, sem aluguel do número, câmbio ou taxas adicionais. Preços revisados em 1º de setembro de 2026. <a class="pricing-note-link" href="https://www.twilio.com/pt-br/sms/pricing/br" target="_blank" rel="noreferrer">Preços oficiais</a></small>
+              <p id="plan-recommendation"><strong>Para 200.000 SMS:</strong> o plano Growth tem o menor custo estimado na 🔥 SMSFire.</p>
+              <small>🔥 SMSFire: mensalidade + volume × preço por SMS. Twilio: valor em dólar por segmento, sem aluguel do número, câmbio ou taxas adicionais. Preços revisados em 1º de setembro de 2026. <a class="pricing-note-link" href="https://www.twilio.com/pt-br/sms/pricing/br" target="_blank" rel="noreferrer">Preços oficiais</a></small>
             </footer>
           </section>
         </section>

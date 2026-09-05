@@ -34,10 +34,16 @@ export interface MessageReport {
   daily: MessageReportDay[];
 }
 
+export interface MessageStatus {
+  sid: string;
+  status: string;
+}
+
 export interface SmsService {
   send(input: SendSmsInput): Promise<SentSms>;
   sendBulk?(inputs: SendSmsInput[]): Promise<SentSms[]>;
   getReport?(): Promise<MessageReport>;
+  getMessageStatuses?(sids: string[]): Promise<MessageStatus[]>;
 }
 
 export class SmsProviderError extends Error {
@@ -123,12 +129,23 @@ export class TwilioSmsService implements SmsService {
       daily,
     };
   }
+
+  async getMessageStatuses(sids: string[]): Promise<MessageStatus[]> {
+    return Promise.all(sids.map(async (sid) => {
+      const message = await this.client.messages(sid).fetch();
+      return { sid: message.sid, status: message.status };
+    }));
+  }
 }
 
 interface SmsFireMessageResponse {
   id?: string;
   statusCode?: number;
   statusName?: string;
+}
+
+interface SmsFireMessageStatusResponse extends SmsFireMessageResponse {
+  id: string;
 }
 
 interface SmsFireBulkResponse {
@@ -146,6 +163,8 @@ function normalizeSmsFireStatus(statusName: string | undefined): string {
     UNDELIV: "undelivered",
     EXPIRED: "undelivered",
     REJECTD: "failed",
+    ERRO: "failed",
+    SCHEDULED: "scheduled",
     DELETED: "failed",
     UNKNOWN: "failed",
   };
@@ -225,6 +244,47 @@ export class SmsFireSmsService implements SmsService {
       status: normalizeSmsFireStatus(message.statusName),
       dateCreated,
       provider: "smsfire",
+    }));
+  }
+
+  async getMessageStatuses(sids: string[]): Promise<MessageStatus[]> {
+    return Promise.all(sids.map(async (sid) => {
+      let response: Response;
+      try {
+        response = await fetch(
+          `${this.baseUrl.replace(/\/$/, "")}/sms/status/message/${encodeURIComponent(sid)}`,
+          {
+            headers: {
+              "Api_Token": this.apiToken,
+              "Username": this.username,
+            },
+            signal: AbortSignal.timeout(this.timeoutMs),
+          },
+        );
+      } catch (error) {
+        const timedOut = error instanceof DOMException
+          && ["AbortError", "TimeoutError"].includes(error.name);
+        throw new SmsProviderError(
+          "smsfire",
+          504,
+          timedOut
+            ? `A SMSFire nao respondeu em ${this.timeoutMs}ms`
+            : "Nao foi possivel consultar a SMSFire",
+        );
+      }
+
+      const payload = await response.json().catch(() => null) as SmsFireMessageStatusResponse | { message?: string } | null;
+      if (!response.ok || !payload || !("id" in payload)) {
+        const providerMessage = payload && "message" in payload ? payload.message : undefined;
+        throw new SmsProviderError(
+          "smsfire",
+          response.status || 502,
+          providerMessage || "A SMSFire nao retornou o status da mensagem",
+          payload,
+        );
+      }
+
+      return { sid: payload.id, status: normalizeSmsFireStatus(payload.statusName) };
     }));
   }
 }
