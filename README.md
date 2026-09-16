@@ -153,7 +153,7 @@ Abra **Destinatários**, informe um nome e cole um número por linha:
 +5511888888888
 ```
 
-Os números devem estar no formato E.164: sinal de `+`, código do país, DDD e telefone, sem zero de operadora.
+Números brasileiros com DDD podem ser colados com 10 ou 11 dígitos; a interface adiciona `+55` automaticamente. Outros países devem usar o formato E.164: sinal de `+`, código do país, código de área e telefone. Cabeçalhos CSV comuns, como `mobile`, são ignorados.
 
 ### 2. Enviar uma mensagem
 

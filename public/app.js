@@ -72,7 +72,15 @@ function escapeHtml(value) {
 }
 
 function normalizePhone(value) {
-  return value.replace(/[\s()-]/g, "");
+  const cleaned = value.trim().replace(/^["']|["']$/g, "");
+  if (/^(mobile|telefone|phone|celular)$/i.test(cleaned)) return "";
+
+  const digits = cleaned.replace(/\D/g, "");
+  if (cleaned.startsWith("+") && /^\d{8,15}$/.test(digits)) return `+${digits}`;
+  if (/^55\d{10,11}$/.test(digits)) return `+${digits}`;
+  if (/^\d{10,11}$/.test(digits)) return `+55${digits}`;
+
+  return cleaned.replace(/[\s()-]/g, "");
 }
 
 function parsePhones(value) {
