@@ -1,7 +1,7 @@
 const STORAGE_LISTS = "sms.console.lists";
 const STORAGE_MESSAGES = "sms.console.messages";
 const MAX_LIST_RECIPIENTS = 100_000;
-const BROADCAST_BATCH_SIZE = 100;
+const BROADCAST_BATCH_SIZES = { twilio: 100, smsfire: 50 };
 const SMSFIRE_BATCH_DELAY_MS = 2_100;
 const MAX_STORED_MESSAGES = 100;
 
@@ -674,11 +674,12 @@ form.addEventListener("submit", async (event) => {
   let completedRecipients = 0;
 
   try {
-    const totalBatches = Math.ceil(list.numbers.length / BROADCAST_BATCH_SIZE);
+    const batchSize = BROADCAST_BATCH_SIZES[provider] || 100;
+    const totalBatches = Math.ceil(list.numbers.length / batchSize);
 
     for (let batchIndex = 0; batchIndex < totalBatches; batchIndex += 1) {
-      const start = batchIndex * BROADCAST_BATCH_SIZE;
-      const recipients = list.numbers.slice(start, start + BROADCAST_BATCH_SIZE);
+      const start = batchIndex * batchSize;
+      const recipients = list.numbers.slice(start, start + batchSize);
       submitButton.querySelector("span").textContent = `Enviando lote ${batchIndex + 1} de ${totalBatches}…`;
 
       const response = await fetch("/ui/broadcasts", {

@@ -41,7 +41,7 @@ Clique em uma imagem para visualizar em tamanho completo.
 
 - Envio individual pela API autenticada.
 - Escolha do provedor antes de cada disparo.
-- Cadastro de listas com até 100.000 números e envio automático em lotes de 100.
+- Cadastro de listas com até 100.000 números e envio automático em lotes adequados a cada provedor.
 - Envio em lote pela SMSFire v3.
 - Cadastro de listas no navegador, sem banco de dados.
 - Histórico local dos envios realizados pela interface.
@@ -117,7 +117,7 @@ TWILIO_PHONE_NUMBER=+15005550006
 SMSFIRE_USERNAME=seu_usuario
 SMSFIRE_API_TOKEN=seu_token_http
 SMSFIRE_BASE_URL=https://api-v3.smsfire.com.br
-SMSFIRE_TIMEOUT_MS=10000
+SMSFIRE_TIMEOUT_MS=60000
 
 API_KEY=gere-uma-chave-longa-e-aleatoria
 PUBLIC_BASE_URL=
@@ -159,7 +159,7 @@ Números brasileiros com DDD podem ser colados com 10 ou 11 dígitos; a interfac
 
 Abra **Envio**, escolha Twilio ou SMSFire, selecione uma lista, escreva a mensagem e confirme o disparo. O servidor retorna quantos envios foram aceitos ou recusados.
 
-A interface divide automaticamente listas grandes em lotes de 100 destinatários por requisição. Em cada lote, a Twilio processa os destinatários individualmente e a SMSFire usa uma chamada ao endpoint em massa da API v3. Entre lotes da SMSFire, a interface aguarda 2,1 segundos para respeitar o limite global de 30 requisições por minuto do provedor.
+A interface divide automaticamente listas grandes em lotes. A Twilio processa até 100 destinatários por requisição. Para dar margem ao tempo de resposta do provedor, a SMSFire usa lotes de 50 destinatários e timeout de 60 segundos. Entre os lotes da SMSFire, a interface aguarda 2,1 segundos para respeitar o limite global de 30 requisições por minuto.
 
 ### 3. Consultar o relatório
 
@@ -331,7 +331,7 @@ tests/
 - Listas e histórico são locais ao navegador e não são sincronizados entre dispositivos.
 - O histórico visual atualiza os envios pendentes dos dois provedores; para respeitar o limite da SMSFire, consulta uma mensagem a cada 30 segundos.
 - O relatório remoto atual é exclusivo da Twilio; os envios SMSFire aparecem no histórico local.
-- Cada lista pode armazenar até 100.000 destinatários no navegador. A Twilio é processada sequencialmente e a SMSFire usa o endpoint em massa, sempre em solicitações de até 100 destinatários e com intervalo de 2,1 segundos entre elas.
+- Cada lista pode armazenar até 100.000 destinatários no navegador. A Twilio é processada em solicitações de até 100 destinatários. A SMSFire usa o endpoint em massa com 50 destinatários por solicitação, timeout de 60 segundos e intervalo de 2,1 segundos entre os lotes.
 - A SMSFire aceita até 765 caracteres por mensagem na API v3; a Twilio aceita até 1.600 nesta aplicação.
 - Contas trial continuam sujeitas às restrições de destinatários e conteúdo da Twilio.
 

@@ -15,7 +15,7 @@ const environmentSchema = z.object({
   SMSFIRE_USERNAME: z.string().trim().default(""),
   SMSFIRE_API_TOKEN: z.string().trim().default(""),
   SMSFIRE_BASE_URL: z.url().default("https://api-v3.smsfire.com.br"),
-  SMSFIRE_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(10_000),
+  SMSFIRE_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(60_000),
   API_KEY: z.string().min(24, "API_KEY deve ter pelo menos 24 caracteres"),
   PUBLIC_BASE_URL: z.union([z.url(), z.literal("")]).default(""),
   TWILIO_VALIDATE_WEBHOOKS: booleanFromString,
