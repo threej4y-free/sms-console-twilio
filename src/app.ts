@@ -207,6 +207,13 @@ export function createApp(dependencies: AppDependencies) {
     legacyHeaders: false,
   });
 
+  const broadcastRateLimit = rateLimit({
+    windowMs: 60_000,
+    limit: 1_000,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+  });
+
   app.post(
     "/v1/messages",
     messageRateLimit,
@@ -238,7 +245,7 @@ export function createApp(dependencies: AppDependencies) {
 
   app.post(
     "/ui/broadcasts",
-    messageRateLimit,
+    broadcastRateLimit,
     express.json({ limit: "30kb" }),
     localOnlyMiddleware(dependencies.enableLocalUi),
     async (request, response, next) => {

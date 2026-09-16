@@ -1,5 +1,8 @@
 const STORAGE_LISTS = "sms.console.lists";
 const STORAGE_MESSAGES = "sms.console.messages";
+const MAX_LIST_RECIPIENTS = 100_000;
+const BROADCAST_BATCH_SIZE = 100;
+const MAX_STORED_MESSAGES = 100;
 
 const form = document.querySelector("#sms-form");
 const listSelect = document.querySelector("#recipient-list");
@@ -458,9 +461,10 @@ listForm.addEventListener("submit", (event) => {
   const numbers = parsePhones(numbersInput.value);
   const invalid = numbers.find((phone) => !/^\+[1-9]\d{7,14}$/.test(phone));
 
-  if (!name || numbers.length === 0 || invalid || numbers.length > 100) {
+  if (!name || numbers.length === 0 || invalid || numbers.length > MAX_LIST_RECIPIENTS) {
     numbersInput.setCustomValidity(
-      numbers.length > 100 ? "Cada lista pode ter no máximo 100 números."
+      numbers.length > MAX_LIST_RECIPIENTS
+        ? `Cada lista pode ter no máximo ${MAX_LIST_RECIPIENTS.toLocaleString("pt-BR")} números.`
         : invalid
         ? `${invalid} não está no formato internacional.`
         : "Adicione pelo menos um número no formato internacional.",
@@ -637,8 +641,12 @@ form.addEventListener("submit", async (event) => {
     showResult("error", "Provedor indisponível", "Verifique a conexão e selecione um provedor disponível.");
     return;
   }
-  if (body.length > messageInput.maxLength || list.numbers.length > 100) {
-    showResult("error", "Revise os limites", `Use até 100 destinatários e ${messageInput.maxLength} caracteres por mensagem.`);
+  if (body.length > messageInput.maxLength || list.numbers.length > MAX_LIST_RECIPIENTS) {
+    showResult(
+      "error",
+      "Revise os limites",
+      `Use até ${MAX_LIST_RECIPIENTS.toLocaleString("pt-BR")} destinatários e ${messageInput.maxLength} caracteres por mensagem.`,
+    );
     messageInput.focus();
     return;
   }
@@ -648,47 +656,73 @@ form.addEventListener("submit", async (event) => {
   submitButton.disabled = true;
   submitButton.querySelector("span").textContent = "Enviando mensagens…";
 
+  let sent = 0;
+  let failed = 0;
+  let completedRecipients = 0;
+
   try {
-    const response = await fetch("/ui/broadcasts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipients: list.numbers, body, provider }),
-    });
-    const payload = await response.json();
+    const totalBatches = Math.ceil(list.numbers.length / BROADCAST_BATCH_SIZE);
 
-    if (!response.ok) {
-      showResult("error", "Envio recusado", errorMessage(payload, "A Twilio recusou a solicitação."));
-      return;
-    }
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex += 1) {
+      const start = batchIndex * BROADCAST_BATCH_SIZE;
+      const recipients = list.numbers.slice(start, start + BROADCAST_BATCH_SIZE);
+      submitButton.querySelector("span").textContent = `Enviando lote ${batchIndex + 1} de ${totalBatches}…`;
 
-    for (const item of payload.results) {
-      messages.unshift({
-        id: item.ok ? item.message.sid : crypto.randomUUID(),
-        to: item.to,
-        body,
-        provider: payload.provider || provider,
-        status: item.ok ? item.message.status : "falhou",
-        createdAt: item.ok && item.message.dateCreated ? item.message.dateCreated : new Date().toISOString(),
+      const response = await fetch("/ui/broadcasts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipients, body, provider }),
       });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(errorMessage(payload, "O provedor recusou este lote."));
+      }
+
+      sent += payload.summary.sent;
+      failed += payload.summary.failed;
+      completedRecipients += payload.summary.total;
+
+      for (const item of payload.results) {
+        messages.unshift({
+          id: item.ok ? item.message.sid : crypto.randomUUID(),
+          to: item.to,
+          body,
+          provider: payload.provider || provider,
+          status: item.ok ? item.message.status : "falhou",
+          createdAt: item.ok && item.message.dateCreated ? item.message.dateCreated : new Date().toISOString(),
+        });
+      }
+      messages = messages.slice(0, MAX_STORED_MESSAGES);
     }
-    messages = messages.slice(0, 100);
+
     writeStorage(STORAGE_MESSAGES, messages);
     renderMessages();
 
-    if (payload.summary.failed > 0) {
+    if (failed > 0) {
       showResult(
         "error",
         "Envio concluído com falhas",
-        `${payload.summary.sent} enviados · ${payload.summary.failed} recusados`,
+        `${sent} enviados · ${failed} recusados`,
       );
     } else {
-      showResult("success", "Disparo concluído", `${payload.summary.sent} mensagens aceitas pela ${providerNames[provider]}.`);
+      showResult("success", "Disparo concluído", `${sent} mensagens aceitas pela ${providerNames[provider]}.`);
       messageInput.value = "";
       messageInput.dispatchEvent(new Event("input"));
     }
     loadReport();
-  } catch {
-    showResult("error", "Servidor indisponível", "Confirme se a aplicação está em execução e tente novamente.");
+  } catch (error) {
+    if (completedRecipients > 0) {
+      writeStorage(STORAGE_MESSAGES, messages);
+      renderMessages();
+      showResult(
+        "error",
+        "Envio interrompido",
+        `${sent} enviados · ${failed} recusados · ${list.numbers.length - completedRecipients} ainda não processados. ${error.message}`,
+      );
+    } else {
+      showResult("error", "Envio recusado", error.message || "Confirme se a aplicação está em execução e tente novamente.");
+    }
   } finally {
     sending = false;
     form.setAttribute("aria-busy", "false");

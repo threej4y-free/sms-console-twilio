@@ -41,7 +41,7 @@ Clique em uma imagem para visualizar em tamanho completo.
 
 - Envio individual pela API autenticada.
 - Escolha do provedor antes de cada disparo.
-- Disparo da mesma mensagem para listas com até 100 números.
+- Cadastro de listas com até 100.000 números e envio automático em lotes de 100.
 - Envio em lote pela SMSFire v3.
 - Cadastro de listas no navegador, sem banco de dados.
 - Histórico local dos envios realizados pela interface.
@@ -159,7 +159,7 @@ Os números devem estar no formato E.164: sinal de `+`, código do país, DDD e 
 
 Abra **Envio**, escolha Twilio ou SMSFire, selecione uma lista, escreva a mensagem e confirme o disparo. O servidor retorna quantos envios foram aceitos ou recusados.
 
-A Twilio processa os destinatários individualmente. A SMSFire envia a lista em uma única chamada ao endpoint de lote da API v3. O limite da interface é de 100 destinatários por disparo em ambos os provedores.
+A interface divide automaticamente listas grandes em lotes de 100 destinatários por requisição. Em cada lote, a Twilio processa os destinatários individualmente e a SMSFire usa uma chamada ao endpoint em massa da API v3.
 
 ### 3. Consultar o relatório
 
@@ -331,7 +331,7 @@ tests/
 - Listas e histórico são locais ao navegador e não são sincronizados entre dispositivos.
 - O histórico visual atualiza os envios pendentes dos dois provedores; para respeitar o limite da SMSFire, consulta uma mensagem a cada 30 segundos.
 - O relatório remoto atual é exclusivo da Twilio; os envios SMSFire aparecem no histórico local.
-- A Twilio é processada sequencialmente; a SMSFire usa o endpoint em massa. Ambos aceitam até 100 destinatários por solicitação nesta interface.
+- Cada lista pode armazenar até 100.000 destinatários no navegador. A Twilio é processada sequencialmente e a SMSFire usa o endpoint em massa, sempre em solicitações de até 100 destinatários.
 - A SMSFire aceita até 765 caracteres por mensagem na API v3; a Twilio aceita até 1.600 nesta aplicação.
 - Contas trial continuam sujeitas às restrições de destinatários e conteúdo da Twilio.
 
