@@ -159,7 +159,7 @@ Números brasileiros com DDD podem ser colados com 10 ou 11 dígitos; a interfac
 
 Abra **Envio**, escolha Twilio ou SMSFire, selecione uma lista, escreva a mensagem e confirme o disparo. O servidor retorna quantos envios foram aceitos ou recusados.
 
-A interface divide automaticamente listas grandes em lotes de 100 destinatários por requisição. Em cada lote, a Twilio processa os destinatários individualmente e a SMSFire usa uma chamada ao endpoint em massa da API v3.
+A interface divide automaticamente listas grandes em lotes de 100 destinatários por requisição. Em cada lote, a Twilio processa os destinatários individualmente e a SMSFire usa uma chamada ao endpoint em massa da API v3. Entre lotes da SMSFire, a interface aguarda 2,1 segundos para respeitar o limite global de 30 requisições por minuto do provedor.
 
 ### 3. Consultar o relatório
 
@@ -331,7 +331,7 @@ tests/
 - Listas e histórico são locais ao navegador e não são sincronizados entre dispositivos.
 - O histórico visual atualiza os envios pendentes dos dois provedores; para respeitar o limite da SMSFire, consulta uma mensagem a cada 30 segundos.
 - O relatório remoto atual é exclusivo da Twilio; os envios SMSFire aparecem no histórico local.
-- Cada lista pode armazenar até 100.000 destinatários no navegador. A Twilio é processada sequencialmente e a SMSFire usa o endpoint em massa, sempre em solicitações de até 100 destinatários.
+- Cada lista pode armazenar até 100.000 destinatários no navegador. A Twilio é processada sequencialmente e a SMSFire usa o endpoint em massa, sempre em solicitações de até 100 destinatários e com intervalo de 2,1 segundos entre elas.
 - A SMSFire aceita até 765 caracteres por mensagem na API v3; a Twilio aceita até 1.600 nesta aplicação.
 - Contas trial continuam sujeitas às restrições de destinatários e conteúdo da Twilio.
 

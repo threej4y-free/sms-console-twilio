@@ -2,6 +2,7 @@ const STORAGE_LISTS = "sms.console.lists";
 const STORAGE_MESSAGES = "sms.console.messages";
 const MAX_LIST_RECIPIENTS = 100_000;
 const BROADCAST_BATCH_SIZE = 100;
+const SMSFIRE_BATCH_DELAY_MS = 2_100;
 const MAX_STORED_MESSAGES = 100;
 
 const form = document.querySelector("#sms-form");
@@ -90,6 +91,10 @@ function parsePhones(value) {
       .map(normalizePhone)
       .filter(Boolean),
   )];
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
 function formatDate(value) {
@@ -702,6 +707,12 @@ form.addEventListener("submit", async (event) => {
         });
       }
       messages = messages.slice(0, MAX_STORED_MESSAGES);
+
+      const hasAnotherBatch = batchIndex + 1 < totalBatches;
+      if (provider === "smsfire" && hasAnotherBatch) {
+        submitButton.querySelector("span").textContent = `Aguardando limite da SMSFire (${batchIndex + 1}/${totalBatches})…`;
+        await wait(SMSFIRE_BATCH_DELAY_MS);
+      }
     }
 
     writeStorage(STORAGE_MESSAGES, messages);
