@@ -209,7 +209,7 @@ export function createApp(dependencies: AppDependencies) {
 
   const broadcastRateLimit = rateLimit({
     windowMs: 60_000,
-    limit: 12,
+    limit: 6,
     standardHeaders: "draft-8",
     legacyHeaders: false,
   });

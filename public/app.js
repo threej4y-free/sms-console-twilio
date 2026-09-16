@@ -2,7 +2,7 @@ const STORAGE_LISTS = "sms.console.lists";
 const STORAGE_MESSAGES = "sms.console.messages";
 const MAX_LIST_RECIPIENTS = 100_000;
 const BROADCAST_BATCH_SIZES = { twilio: 100, smsfire: 50 };
-const SMSFIRE_BATCH_DELAY_MS = 5_000;
+const SMSFIRE_BATCH_DELAY_MS = 10_000;
 const MAX_STORED_MESSAGES = 100;
 
 const form = document.querySelector("#sms-form");
