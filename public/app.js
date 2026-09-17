@@ -478,16 +478,15 @@ listForm.addEventListener("submit", (event) => {
   const nameInput = document.querySelector("#list-name");
   const numbersInput = document.querySelector("#list-numbers");
   const name = nameInput.value.trim();
-  const numbers = parsePhones(numbersInput.value);
-  const invalid = numbers.find((phone) => !/^\+[1-9]\d{7,14}$/.test(phone));
+  const parsedNumbers = parsePhones(numbersInput.value);
+  const numbers = parsedNumbers.filter((phone) => /^\+[1-9]\d{7,14}$/.test(phone));
+  const discardedNumbers = parsedNumbers.length - numbers.length;
 
   nameInput.setCustomValidity(name ? "" : "Informe o nome da lista.");
   const numbersError = numbers.length > MAX_LIST_RECIPIENTS
     ? `Cada lista pode ter no máximo ${MAX_LIST_RECIPIENTS.toLocaleString("pt-BR")} números.`
-    : invalid
-    ? `${invalid} não está no formato internacional.`
     : numbers.length === 0
-    ? "Adicione pelo menos um número válido."
+    ? "Nenhum número válido foi encontrado na lista."
     : "";
   numbersInput.setCustomValidity(numbersError);
 
@@ -524,7 +523,7 @@ listForm.addEventListener("submit", (event) => {
   renderLists();
   showListResult(
     "success",
-    `${existing ? "Lista atualizada" : "Lista salva"} com ${numbers.length.toLocaleString("pt-BR")} números.`,
+    `${existing ? "Lista atualizada" : "Lista salva"} com ${numbers.length.toLocaleString("pt-BR")} números${discardedNumbers > 0 ? `; ${discardedNumbers.toLocaleString("pt-BR")} inválidos descartados` : ""}.`,
   );
   nameInput.value = "";
   numbersInput.value = "";

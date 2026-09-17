@@ -155,6 +155,8 @@ Abra **Destinatários**, informe um nome e cole um número por linha:
 
 Números brasileiros com DDD podem ser colados com 10 ou 11 dígitos; a interface adiciona `+55` automaticamente. Outros países devem usar o formato E.164: sinal de `+`, código do país, código de área e telefone. Cabeçalhos CSV comuns, como `mobile`, são ignorados.
 
+Linhas incompletas ou inválidas são descartadas automaticamente ao salvar, sem bloquear os demais números válidos da lista. A interface informa quantos registros foram mantidos e quantos foram removidos.
+
 ### 2. Enviar uma mensagem
 
 Abra **Envio**, escolha Twilio ou SMSFire, selecione uma lista, escreva a mensagem e confirme o disparo. O servidor retorna quantos envios foram aceitos ou recusados.

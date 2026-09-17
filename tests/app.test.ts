@@ -75,6 +75,7 @@ describe("API de SMS", () => {
     expect(response.text).toContain('id="sidebar-backdrop"');
     expect(response.text).toContain('aria-controls="mobile-navigation"');
     expect(response.text).toContain('id="recipient-result"');
+    expect(response.text).toContain("Números brasileiros recebem +55 automaticamente");
     expect(response.text).toContain('value="200000"');
     expect(response.text.indexOf('class="plan-row twilio-plan-row"'))
       .toBeGreaterThan(response.text.indexOf('data-plan="scale"'));
