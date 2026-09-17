@@ -19,6 +19,7 @@ const resultMessage = document.querySelector("#result-message");
 const listForm = document.querySelector("#recipient-form");
 const listTable = document.querySelector("#recipient-table");
 const listEmpty = document.querySelector("#recipient-empty");
+const listResult = document.querySelector("#recipient-result");
 const messageTable = document.querySelector("#message-table");
 const messageEmpty = document.querySelector("#message-empty");
 const providerInput = document.querySelector("#sms-provider");
@@ -331,6 +332,12 @@ function showResult(type, title, message) {
   resultMessage.textContent = message;
 }
 
+function showListResult(type, message) {
+  listResult.hidden = false;
+  listResult.classList.toggle("error", type === "error");
+  listResult.textContent = message;
+}
+
 function errorMessage(payload, fallback) {
   if (payload?.twilio?.message) {
     const code = payload.twilio.code ? `código ${payload.twilio.code}: ` : "";
@@ -474,32 +481,61 @@ listForm.addEventListener("submit", (event) => {
   const numbers = parsePhones(numbersInput.value);
   const invalid = numbers.find((phone) => !/^\+[1-9]\d{7,14}$/.test(phone));
 
-  if (!name || numbers.length === 0 || invalid || numbers.length > MAX_LIST_RECIPIENTS) {
-    numbersInput.setCustomValidity(
-      numbers.length > MAX_LIST_RECIPIENTS
-        ? `Cada lista pode ter no máximo ${MAX_LIST_RECIPIENTS.toLocaleString("pt-BR")} números.`
-        : invalid
-        ? `${invalid} não está no formato internacional.`
-        : "Adicione pelo menos um número no formato internacional.",
-    );
+  nameInput.setCustomValidity(name ? "" : "Informe o nome da lista.");
+  const numbersError = numbers.length > MAX_LIST_RECIPIENTS
+    ? `Cada lista pode ter no máximo ${MAX_LIST_RECIPIENTS.toLocaleString("pt-BR")} números.`
+    : invalid
+    ? `${invalid} não está no formato internacional.`
+    : numbers.length === 0
+    ? "Adicione pelo menos um número válido."
+    : "";
+  numbersInput.setCustomValidity(numbersError);
+
+  if (!name || numbersError) {
+    showListResult("error", !name ? "Informe o nome da lista." : numbersError);
     listForm.reportValidity();
-    numbersInput.setCustomValidity("");
     return;
   }
 
   const existing = lists.find((item) => item.name.toLocaleLowerCase("pt-BR") === name.toLocaleLowerCase("pt-BR"));
+  let nextLists;
   if (existing) {
-    existing.numbers = numbers;
-    existing.updatedAt = new Date().toISOString();
+    nextLists = lists.map((item) => item.id === existing.id
+      ? { ...item, numbers, updatedAt: new Date().toISOString() }
+      : item);
   } else {
-    lists.unshift({ id: crypto.randomUUID(), name, numbers, createdAt: new Date().toISOString() });
+    nextLists = [
+      { id: crypto.randomUUID(), name, numbers, createdAt: new Date().toISOString() },
+      ...lists,
+    ];
   }
 
-  writeStorage(STORAGE_LISTS, lists);
+  try {
+    writeStorage(STORAGE_LISTS, nextLists);
+  } catch {
+    showListResult(
+      "error",
+      "Não foi possível salvar: o armazenamento deste navegador está cheio ou bloqueado.",
+    );
+    return;
+  }
+
+  lists = nextLists;
   renderLists();
+  showListResult(
+    "success",
+    `${existing ? "Lista atualizada" : "Lista salva"} com ${numbers.length.toLocaleString("pt-BR")} números.`,
+  );
   nameInput.value = "";
   numbersInput.value = "";
   nameInput.focus();
+});
+
+listForm.addEventListener("input", (event) => {
+  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+    event.target.setCustomValidity("");
+  }
+  listResult.hidden = true;
 });
 
 listTable.addEventListener("click", (event) => {

@@ -598,6 +598,9 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 }
 
 .directory-actions .secondary-button { width: 100%; min-height: 52px; height: auto; }
+.directory-submit { display: grid; gap: 10px; }
+.list-feedback { padding: 10px 12px; border: 1px solid rgba(var(--accent-rgb), .28); border-radius: 10px; background: rgba(var(--accent-rgb), .08); color: var(--accent) !important; }
+.list-feedback.error { border-color: rgba(242,77,88,.35); background: rgba(242,77,88,.08); color: #ff8991 !important; }
 
 .table-wrap {
   position: relative;
